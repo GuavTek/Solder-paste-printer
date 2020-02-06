@@ -3,29 +3,29 @@ Solder paste printer.elf:     file format elf32-avr
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .data         00000002  00802800  000002e0  00000354  2**0
+  0 .data         00000002  00802800  000002dc  00000350  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  1 .text         000002e0  00000000  00000000  00000074  2**1
+  1 .text         000002dc  00000000  00000000  00000074  2**1
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .comment      00000030  00000000  00000000  00000356  2**0
+  2 .comment      00000030  00000000  00000000  00000352  2**0
                   CONTENTS, READONLY
-  3 .note.gnu.avr.deviceinfo 00000040  00000000  00000000  00000388  2**2
+  3 .note.gnu.avr.deviceinfo 00000040  00000000  00000000  00000384  2**2
                   CONTENTS, READONLY
-  4 .debug_aranges 00000058  00000000  00000000  000003c8  2**0
+  4 .debug_aranges 00000058  00000000  00000000  000003c4  2**0
                   CONTENTS, READONLY, DEBUGGING
-  5 .debug_info   00002d84  00000000  00000000  00000420  2**0
+  5 .debug_info   00002d82  00000000  00000000  0000041c  2**0
                   CONTENTS, READONLY, DEBUGGING
-  6 .debug_abbrev 000025e4  00000000  00000000  000031a4  2**0
+  6 .debug_abbrev 000025d5  00000000  00000000  0000319e  2**0
                   CONTENTS, READONLY, DEBUGGING
-  7 .debug_line   00000570  00000000  00000000  00005788  2**0
+  7 .debug_line   00000570  00000000  00000000  00005773  2**0
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_frame  000000c8  00000000  00000000  00005cf8  2**2
+  8 .debug_frame  000000c8  00000000  00000000  00005ce4  2**2
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_str    000013b2  00000000  00000000  00005dc0  2**0
+  9 .debug_str    000013b2  00000000  00000000  00005dac  2**0
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_loc    00000209  00000000  00000000  00007172  2**0
+ 10 .debug_loc    000001eb  00000000  00000000  0000715e  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_ranges 00000038  00000000  00000000  0000737b  2**0
+ 11 .debug_ranges 00000038  00000000  00000000  00007349  2**0
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -68,7 +68,7 @@ Disassembly of section .text:
   88:	0c 94 65 00 	jmp	0xca	; 0xca <__bad_interrupt>
   8c:	0c 94 65 00 	jmp	0xca	; 0xca <__bad_interrupt>
   90:	0c 94 65 00 	jmp	0xca	; 0xca <__bad_interrupt>
-  94:	0c 94 28 01 	jmp	0x250	; 0x250 <__vector_37>
+  94:	0c 94 26 01 	jmp	0x24c	; 0x24c <__vector_37>
   98:	0c 94 65 00 	jmp	0xca	; 0xca <__bad_interrupt>
   9c:	0c 94 65 00 	jmp	0xca	; 0xca <__bad_interrupt>
 
@@ -84,7 +84,7 @@ Disassembly of section .text:
   ac:	18 e2       	ldi	r17, 0x28	; 40
   ae:	a0 e0       	ldi	r26, 0x00	; 0
   b0:	b8 e2       	ldi	r27, 0x28	; 40
-  b2:	e0 ee       	ldi	r30, 0xE0	; 224
+  b2:	ec ed       	ldi	r30, 0xDC	; 220
   b4:	f2 e0       	ldi	r31, 0x02	; 2
   b6:	02 c0       	rjmp	.+4      	; 0xbc <__do_copy_data+0x10>
   b8:	05 90       	lpm	r0, Z+
@@ -93,7 +93,7 @@ Disassembly of section .text:
   be:	b1 07       	cpc	r27, r17
   c0:	d9 f7       	brne	.-10     	; 0xb8 <__do_copy_data+0xc>
   c2:	0e 94 da 00 	call	0x1b4	; 0x1b4 <main>
-  c6:	0c 94 6e 01 	jmp	0x2dc	; 0x2dc <_exit>
+  c6:	0c 94 6c 01 	jmp	0x2d8	; 0x2d8 <_exit>
 
 000000ca <__bad_interrupt>:
   ca:	0c 94 00 00 	jmp	0	; 0x0 <__vectors>
@@ -110,12 +110,13 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
   d2:	9a 01       	movw	r18, r20
   d4:	ab 01       	movw	r20, r22
 	
+	//Division needed to get desired baudrate
 	uint16_t baudDiv = (4 * fCLK_PER / baudrate);
-  d6:	64 e5       	ldi	r22, 0x54	; 84
+  d6:	65 e5       	ldi	r22, 0x55	; 85
   d8:	73 e7       	ldi	r23, 0x73	; 115
   da:	8b ec       	ldi	r24, 0xCB	; 203
   dc:	90 e0       	ldi	r25, 0x00	; 0
-  de:	0e 94 4c 01 	call	0x298	; 0x298 <__udivmodsi4>
+  de:	0e 94 4a 01 	call	0x294	; 0x294 <__udivmodsi4>
 	uint8_t RB = USART_RXEN_bm|USART_TXEN_bm;
 	
 	//Set no parity, 8 data-bits
@@ -143,8 +144,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 		USART0.CTRLC = RC;
   fe:	83 e0       	ldi	r24, 0x03	; 3
  100:	87 83       	std	Z+7, r24	; 0x07
-		//TXD = output
-		PORTA.DIRSET = 1 << 0;	//PA0
+		PORTA.DIRSET = 1 << 0;		//PA0 is output
  102:	81 e0       	ldi	r24, 0x01	; 1
  104:	80 93 01 04 	sts	0x0401, r24	; 0x800401 <__TEXT_REGION_LENGTH__+0x700401>
 		USART0.CTRLB = RB;
@@ -164,7 +164,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 		USART1.CTRLC = RC;
  11a:	83 e0       	ldi	r24, 0x03	; 3
  11c:	87 83       	std	Z+7, r24	; 0x07
-		PORTC.DIRSET = 1 << 0;		//PC0
+		PORTC.DIRSET = 1 << 0;		//PC0 is output
  11e:	81 e0       	ldi	r24, 0x01	; 1
  120:	80 93 41 04 	sts	0x0441, r24	; 0x800441 <__TEXT_REGION_LENGTH__+0x700441>
 		USART1.CTRLB = RB;
@@ -184,7 +184,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 		USART2.CTRLC = RC;
  136:	83 e0       	ldi	r24, 0x03	; 3
  138:	87 83       	std	Z+7, r24	; 0x07
-		PORTF.DIRSET = 1 << 0;		//PF0
+		PORTF.DIRSET = 1 << 0;		//PF0 is output
  13a:	81 e0       	ldi	r24, 0x01	; 1
  13c:	80 93 a1 04 	sts	0x04A1, r24	; 0x8004a1 <__TEXT_REGION_LENGTH__+0x7004a1>
 		USART2.CTRLB = RB;
@@ -204,7 +204,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 		USART3.CTRLC = RC;
  152:	83 e0       	ldi	r24, 0x03	; 3
  154:	87 83       	std	Z+7, r24	; 0x07
-		PORTB.DIRSET = 1 << 0;		//PB0
+		PORTB.DIRSET = 1 << 0;		//PB0 is output
  156:	81 e0       	ldi	r24, 0x01	; 1
  158:	80 93 21 04 	sts	0x0421, r24	; 0x800421 <__TEXT_REGION_LENGTH__+0x700421>
 		USART3.CTRLB = RB;
@@ -218,45 +218,45 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 
 00000164 <USB_RX>:
 
-
 void USB_RX(){
 	char hasGet = USART3.RXDATAL;
  164:	80 91 60 08 	lds	r24, 0x0860	; 0x800860 <__TEXT_REGION_LENGTH__+0x700860>
 	if (hasGet == 'b')
  168:	82 36       	cpi	r24, 0x62	; 98
- 16a:	79 f4       	brne	.+30     	; 0x18a <USB_RX+0x26>
+ 16a:	81 f4       	brne	.+32     	; 0x18c <USB_RX+0x28>
 	{
 		move += 4;
- 16c:	80 91 00 28 	lds	r24, 0x2800	; 0x802800 <__data_start>
- 170:	90 91 01 28 	lds	r25, 0x2801	; 0x802801 <__data_start+0x1>
- 174:	04 96       	adiw	r24, 0x04	; 4
- 176:	80 93 00 28 	sts	0x2800, r24	; 0x802800 <__data_start>
- 17a:	90 93 01 28 	sts	0x2801, r25	; 0x802801 <__data_start+0x1>
+ 16c:	20 91 00 28 	lds	r18, 0x2800	; 0x802800 <__data_start>
+ 170:	30 91 01 28 	lds	r19, 0x2801	; 0x802801 <__data_start+0x1>
+ 174:	2c 5f       	subi	r18, 0xFC	; 252
+ 176:	3f 4f       	sbci	r19, 0xFF	; 255
+ 178:	20 93 00 28 	sts	0x2800, r18	; 0x802800 <__data_start>
+ 17c:	30 93 01 28 	sts	0x2801, r19	; 0x802801 <__data_start+0x1>
 		PORTF.OUT |= 1 << 5;
- 17e:	e0 ea       	ldi	r30, 0xA0	; 160
- 180:	f4 e0       	ldi	r31, 0x04	; 4
- 182:	84 81       	ldd	r24, Z+4	; 0x04
- 184:	80 62       	ori	r24, 0x20	; 32
- 186:	84 83       	std	Z+4, r24	; 0x04
- 188:	10 c0       	rjmp	.+32     	; 0x1aa <USB_RX+0x46>
+ 180:	e0 ea       	ldi	r30, 0xA0	; 160
+ 182:	f4 e0       	ldi	r31, 0x04	; 4
+ 184:	94 81       	ldd	r25, Z+4	; 0x04
+ 186:	90 62       	ori	r25, 0x20	; 32
+ 188:	94 83       	std	Z+4, r25	; 0x04
+ 18a:	11 c0       	rjmp	.+34     	; 0x1ae <USB_RX+0x4a>
 	} else if(hasGet == 'a'){
- 18a:	81 36       	cpi	r24, 0x61	; 97
- 18c:	71 f4       	brne	.+28     	; 0x1aa <USB_RX+0x46>
+ 18c:	81 36       	cpi	r24, 0x61	; 97
+ 18e:	79 f4       	brne	.+30     	; 0x1ae <USB_RX+0x4a>
 		move -= 4;
- 18e:	80 91 00 28 	lds	r24, 0x2800	; 0x802800 <__data_start>
- 192:	90 91 01 28 	lds	r25, 0x2801	; 0x802801 <__data_start+0x1>
- 196:	04 97       	sbiw	r24, 0x04	; 4
- 198:	80 93 00 28 	sts	0x2800, r24	; 0x802800 <__data_start>
- 19c:	90 93 01 28 	sts	0x2801, r25	; 0x802801 <__data_start+0x1>
+ 190:	20 91 00 28 	lds	r18, 0x2800	; 0x802800 <__data_start>
+ 194:	30 91 01 28 	lds	r19, 0x2801	; 0x802801 <__data_start+0x1>
+ 198:	24 50       	subi	r18, 0x04	; 4
+ 19a:	31 09       	sbc	r19, r1
+ 19c:	20 93 00 28 	sts	0x2800, r18	; 0x802800 <__data_start>
+ 1a0:	30 93 01 28 	sts	0x2801, r19	; 0x802801 <__data_start+0x1>
 		PORTF.OUT &= ~(1 << 5);
- 1a0:	e0 ea       	ldi	r30, 0xA0	; 160
- 1a2:	f4 e0       	ldi	r31, 0x04	; 4
- 1a4:	84 81       	ldd	r24, Z+4	; 0x04
- 1a6:	8f 7d       	andi	r24, 0xDF	; 223
- 1a8:	84 83       	std	Z+4, r24	; 0x04
+ 1a4:	e0 ea       	ldi	r30, 0xA0	; 160
+ 1a6:	f4 e0       	ldi	r31, 0x04	; 4
+ 1a8:	94 81       	ldd	r25, Z+4	; 0x04
+ 1aa:	9f 7d       	andi	r25, 0xDF	; 223
+ 1ac:	94 83       	std	Z+4, r25	; 0x04
 	}
-	USART3.TXDATAL = move;
- 1aa:	80 91 00 28 	lds	r24, 0x2800	; 0x802800 <__data_start>
+	USART3.TXDATAL = hasGet;
  1ae:	80 93 62 08 	sts	0x0862, r24	; 0x800862 <__TEXT_REGION_LENGTH__+0x700862>
  1b2:	08 95       	ret
 
@@ -309,161 +309,159 @@ int main(void)
 	#endif
 
 	__builtin_avr_delay_cycles(__ticks_dc);
- 1de:	2f e7       	ldi	r18, 0x7F	; 127
- 1e0:	8a e1       	ldi	r24, 0x1A	; 26
- 1e2:	96 e0       	ldi	r25, 0x06	; 6
+ 1de:	2a e6       	ldi	r18, 0x6A	; 106
+ 1e0:	84 e0       	ldi	r24, 0x04	; 4
+ 1e2:	91 e0       	ldi	r25, 0x01	; 1
  1e4:	21 50       	subi	r18, 0x01	; 1
  1e6:	80 40       	sbci	r24, 0x00	; 0
  1e8:	90 40       	sbci	r25, 0x00	; 0
  1ea:	e1 f7       	brne	.-8      	; 0x1e4 <main+0x30>
  1ec:	00 c0       	rjmp	.+0      	; 0x1ee <main+0x3a>
- 1ee:	00 00       	nop
 	sei();
     /* Replace with your application code */
     while (1) 
     {
-		_delay_ms(100);
+		_delay_ms(100);			// Actually not 100ms, but ~600ms. Seems like it uses fCLK_PER. 
 		if(move != 0){
- 1f0:	80 91 00 28 	lds	r24, 0x2800	; 0x802800 <__data_start>
- 1f4:	90 91 01 28 	lds	r25, 0x2801	; 0x802801 <__data_start+0x1>
- 1f8:	00 97       	sbiw	r24, 0x00	; 0
- 1fa:	e9 f0       	breq	.+58     	; 0x236 <main+0x82>
+ 1ee:	80 91 00 28 	lds	r24, 0x2800	; 0x802800 <__data_start>
+ 1f2:	90 91 01 28 	lds	r25, 0x2801	; 0x802801 <__data_start+0x1>
+ 1f6:	00 97       	sbiw	r24, 0x00	; 0
+ 1f8:	e9 f0       	breq	.+58     	; 0x234 <main+0x80>
 			if(move > 0){
- 1fc:	6c f0       	brlt	.+26     	; 0x218 <main+0x64>
+ 1fa:	6c f0       	brlt	.+26     	; 0x216 <main+0x62>
 				PORTC.OUT |= 1 << MDir;
- 1fe:	14 96       	adiw	r26, 0x04	; 4
- 200:	2c 91       	ld	r18, X
- 202:	14 97       	sbiw	r26, 0x04	; 4
- 204:	24 60       	ori	r18, 0x04	; 4
- 206:	14 96       	adiw	r26, 0x04	; 4
- 208:	2c 93       	st	X, r18
- 20a:	14 97       	sbiw	r26, 0x04	; 4
+ 1fc:	14 96       	adiw	r26, 0x04	; 4
+ 1fe:	2c 91       	ld	r18, X
+ 200:	14 97       	sbiw	r26, 0x04	; 4
+ 202:	24 60       	ori	r18, 0x04	; 4
+ 204:	14 96       	adiw	r26, 0x04	; 4
+ 206:	2c 93       	st	X, r18
+ 208:	14 97       	sbiw	r26, 0x04	; 4
 				move--;
- 20c:	01 97       	sbiw	r24, 0x01	; 1
- 20e:	80 93 00 28 	sts	0x2800, r24	; 0x802800 <__data_start>
- 212:	90 93 01 28 	sts	0x2801, r25	; 0x802801 <__data_start+0x1>
- 216:	0c c0       	rjmp	.+24     	; 0x230 <main+0x7c>
+ 20a:	01 97       	sbiw	r24, 0x01	; 1
+ 20c:	80 93 00 28 	sts	0x2800, r24	; 0x802800 <__data_start>
+ 210:	90 93 01 28 	sts	0x2801, r25	; 0x802801 <__data_start+0x1>
+ 214:	0c c0       	rjmp	.+24     	; 0x22e <main+0x7a>
 			} else{
 				PORTC.OUT &= ~(1 << MDir);
- 218:	14 96       	adiw	r26, 0x04	; 4
- 21a:	2c 91       	ld	r18, X
- 21c:	14 97       	sbiw	r26, 0x04	; 4
- 21e:	2b 7f       	andi	r18, 0xFB	; 251
- 220:	14 96       	adiw	r26, 0x04	; 4
- 222:	2c 93       	st	X, r18
- 224:	14 97       	sbiw	r26, 0x04	; 4
+ 216:	14 96       	adiw	r26, 0x04	; 4
+ 218:	2c 91       	ld	r18, X
+ 21a:	14 97       	sbiw	r26, 0x04	; 4
+ 21c:	2b 7f       	andi	r18, 0xFB	; 251
+ 21e:	14 96       	adiw	r26, 0x04	; 4
+ 220:	2c 93       	st	X, r18
+ 222:	14 97       	sbiw	r26, 0x04	; 4
 				move++;
- 226:	01 96       	adiw	r24, 0x01	; 1
- 228:	80 93 00 28 	sts	0x2800, r24	; 0x802800 <__data_start>
- 22c:	90 93 01 28 	sts	0x2801, r25	; 0x802801 <__data_start+0x1>
+ 224:	01 96       	adiw	r24, 0x01	; 1
+ 226:	80 93 00 28 	sts	0x2800, r24	; 0x802800 <__data_start>
+ 22a:	90 93 01 28 	sts	0x2801, r25	; 0x802801 <__data_start+0x1>
 			}
 			PORTD.OUT |= 1 << MStep;
- 230:	84 81       	ldd	r24, Z+4	; 0x04
- 232:	80 61       	ori	r24, 0x10	; 16
- 234:	84 83       	std	Z+4, r24	; 0x04
- 236:	2f e7       	ldi	r18, 0x7F	; 127
- 238:	8a e1       	ldi	r24, 0x1A	; 26
- 23a:	96 e0       	ldi	r25, 0x06	; 6
- 23c:	21 50       	subi	r18, 0x01	; 1
- 23e:	80 40       	sbci	r24, 0x00	; 0
- 240:	90 40       	sbci	r25, 0x00	; 0
- 242:	e1 f7       	brne	.-8      	; 0x23c <main+0x88>
- 244:	00 c0       	rjmp	.+0      	; 0x246 <main+0x92>
- 246:	00 00       	nop
+ 22e:	84 81       	ldd	r24, Z+4	; 0x04
+ 230:	80 61       	ori	r24, 0x10	; 16
+ 232:	84 83       	std	Z+4, r24	; 0x04
+ 234:	2a e6       	ldi	r18, 0x6A	; 106
+ 236:	84 e0       	ldi	r24, 0x04	; 4
+ 238:	91 e0       	ldi	r25, 0x01	; 1
+ 23a:	21 50       	subi	r18, 0x01	; 1
+ 23c:	80 40       	sbci	r24, 0x00	; 0
+ 23e:	90 40       	sbci	r25, 0x00	; 0
+ 240:	e1 f7       	brne	.-8      	; 0x23a <main+0x86>
+ 242:	00 c0       	rjmp	.+0      	; 0x244 <main+0x90>
 		}
 		_delay_ms(100);
 		PORTD.OUT &= ~(1 << MStep);
- 248:	84 81       	ldd	r24, Z+4	; 0x04
- 24a:	8f 7e       	andi	r24, 0xEF	; 239
- 24c:	84 83       	std	Z+4, r24	; 0x04
+ 244:	84 81       	ldd	r24, Z+4	; 0x04
+ 246:	8f 7e       	andi	r24, 0xEF	; 239
+ 248:	84 83       	std	Z+4, r24	; 0x04
 		
     }
- 24e:	c7 cf       	rjmp	.-114    	; 0x1de <main+0x2a>
+ 24a:	c9 cf       	rjmp	.-110    	; 0x1de <main+0x2a>
 
-00000250 <__vector_37>:
+0000024c <__vector_37>:
 }
 
 ISR(USART3_RXC_vect){
- 250:	1f 92       	push	r1
+ 24c:	1f 92       	push	r1
+ 24e:	0f 92       	push	r0
+ 250:	0f b6       	in	r0, 0x3f	; 63
  252:	0f 92       	push	r0
- 254:	0f b6       	in	r0, 0x3f	; 63
- 256:	0f 92       	push	r0
- 258:	11 24       	eor	r1, r1
- 25a:	2f 93       	push	r18
- 25c:	3f 93       	push	r19
- 25e:	4f 93       	push	r20
- 260:	5f 93       	push	r21
- 262:	6f 93       	push	r22
- 264:	7f 93       	push	r23
- 266:	8f 93       	push	r24
- 268:	9f 93       	push	r25
- 26a:	af 93       	push	r26
- 26c:	bf 93       	push	r27
- 26e:	ef 93       	push	r30
- 270:	ff 93       	push	r31
+ 254:	11 24       	eor	r1, r1
+ 256:	2f 93       	push	r18
+ 258:	3f 93       	push	r19
+ 25a:	4f 93       	push	r20
+ 25c:	5f 93       	push	r21
+ 25e:	6f 93       	push	r22
+ 260:	7f 93       	push	r23
+ 262:	8f 93       	push	r24
+ 264:	9f 93       	push	r25
+ 266:	af 93       	push	r26
+ 268:	bf 93       	push	r27
+ 26a:	ef 93       	push	r30
+ 26c:	ff 93       	push	r31
 	USB_RX();
- 272:	0e 94 b2 00 	call	0x164	; 0x164 <USB_RX>
+ 26e:	0e 94 b2 00 	call	0x164	; 0x164 <USB_RX>
 }
- 276:	ff 91       	pop	r31
- 278:	ef 91       	pop	r30
- 27a:	bf 91       	pop	r27
- 27c:	af 91       	pop	r26
- 27e:	9f 91       	pop	r25
- 280:	8f 91       	pop	r24
- 282:	7f 91       	pop	r23
- 284:	6f 91       	pop	r22
- 286:	5f 91       	pop	r21
- 288:	4f 91       	pop	r20
- 28a:	3f 91       	pop	r19
- 28c:	2f 91       	pop	r18
+ 272:	ff 91       	pop	r31
+ 274:	ef 91       	pop	r30
+ 276:	bf 91       	pop	r27
+ 278:	af 91       	pop	r26
+ 27a:	9f 91       	pop	r25
+ 27c:	8f 91       	pop	r24
+ 27e:	7f 91       	pop	r23
+ 280:	6f 91       	pop	r22
+ 282:	5f 91       	pop	r21
+ 284:	4f 91       	pop	r20
+ 286:	3f 91       	pop	r19
+ 288:	2f 91       	pop	r18
+ 28a:	0f 90       	pop	r0
+ 28c:	0f be       	out	0x3f, r0	; 63
  28e:	0f 90       	pop	r0
- 290:	0f be       	out	0x3f, r0	; 63
- 292:	0f 90       	pop	r0
- 294:	1f 90       	pop	r1
- 296:	18 95       	reti
+ 290:	1f 90       	pop	r1
+ 292:	18 95       	reti
 
-00000298 <__udivmodsi4>:
- 298:	a1 e2       	ldi	r26, 0x21	; 33
- 29a:	1a 2e       	mov	r1, r26
- 29c:	aa 1b       	sub	r26, r26
- 29e:	bb 1b       	sub	r27, r27
- 2a0:	fd 01       	movw	r30, r26
- 2a2:	0d c0       	rjmp	.+26     	; 0x2be <__udivmodsi4_ep>
+00000294 <__udivmodsi4>:
+ 294:	a1 e2       	ldi	r26, 0x21	; 33
+ 296:	1a 2e       	mov	r1, r26
+ 298:	aa 1b       	sub	r26, r26
+ 29a:	bb 1b       	sub	r27, r27
+ 29c:	fd 01       	movw	r30, r26
+ 29e:	0d c0       	rjmp	.+26     	; 0x2ba <__udivmodsi4_ep>
 
-000002a4 <__udivmodsi4_loop>:
- 2a4:	aa 1f       	adc	r26, r26
- 2a6:	bb 1f       	adc	r27, r27
- 2a8:	ee 1f       	adc	r30, r30
- 2aa:	ff 1f       	adc	r31, r31
- 2ac:	a2 17       	cp	r26, r18
- 2ae:	b3 07       	cpc	r27, r19
- 2b0:	e4 07       	cpc	r30, r20
- 2b2:	f5 07       	cpc	r31, r21
- 2b4:	20 f0       	brcs	.+8      	; 0x2be <__udivmodsi4_ep>
- 2b6:	a2 1b       	sub	r26, r18
- 2b8:	b3 0b       	sbc	r27, r19
- 2ba:	e4 0b       	sbc	r30, r20
- 2bc:	f5 0b       	sbc	r31, r21
+000002a0 <__udivmodsi4_loop>:
+ 2a0:	aa 1f       	adc	r26, r26
+ 2a2:	bb 1f       	adc	r27, r27
+ 2a4:	ee 1f       	adc	r30, r30
+ 2a6:	ff 1f       	adc	r31, r31
+ 2a8:	a2 17       	cp	r26, r18
+ 2aa:	b3 07       	cpc	r27, r19
+ 2ac:	e4 07       	cpc	r30, r20
+ 2ae:	f5 07       	cpc	r31, r21
+ 2b0:	20 f0       	brcs	.+8      	; 0x2ba <__udivmodsi4_ep>
+ 2b2:	a2 1b       	sub	r26, r18
+ 2b4:	b3 0b       	sbc	r27, r19
+ 2b6:	e4 0b       	sbc	r30, r20
+ 2b8:	f5 0b       	sbc	r31, r21
 
-000002be <__udivmodsi4_ep>:
- 2be:	66 1f       	adc	r22, r22
- 2c0:	77 1f       	adc	r23, r23
- 2c2:	88 1f       	adc	r24, r24
- 2c4:	99 1f       	adc	r25, r25
- 2c6:	1a 94       	dec	r1
- 2c8:	69 f7       	brne	.-38     	; 0x2a4 <__udivmodsi4_loop>
- 2ca:	60 95       	com	r22
- 2cc:	70 95       	com	r23
- 2ce:	80 95       	com	r24
- 2d0:	90 95       	com	r25
- 2d2:	9b 01       	movw	r18, r22
- 2d4:	ac 01       	movw	r20, r24
- 2d6:	bd 01       	movw	r22, r26
- 2d8:	cf 01       	movw	r24, r30
- 2da:	08 95       	ret
+000002ba <__udivmodsi4_ep>:
+ 2ba:	66 1f       	adc	r22, r22
+ 2bc:	77 1f       	adc	r23, r23
+ 2be:	88 1f       	adc	r24, r24
+ 2c0:	99 1f       	adc	r25, r25
+ 2c2:	1a 94       	dec	r1
+ 2c4:	69 f7       	brne	.-38     	; 0x2a0 <__udivmodsi4_loop>
+ 2c6:	60 95       	com	r22
+ 2c8:	70 95       	com	r23
+ 2ca:	80 95       	com	r24
+ 2cc:	90 95       	com	r25
+ 2ce:	9b 01       	movw	r18, r22
+ 2d0:	ac 01       	movw	r20, r24
+ 2d2:	bd 01       	movw	r22, r26
+ 2d4:	cf 01       	movw	r24, r30
+ 2d6:	08 95       	ret
 
-000002dc <_exit>:
- 2dc:	f8 94       	cli
+000002d8 <_exit>:
+ 2d8:	f8 94       	cli
 
-000002de <__stop_program>:
- 2de:	ff cf       	rjmp	.-2      	; 0x2de <__stop_program>
+000002da <__stop_program>:
+ 2da:	ff cf       	rjmp	.-2      	; 0x2da <__stop_program>

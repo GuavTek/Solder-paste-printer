@@ -11,9 +11,10 @@
 #define GLOBALVARS_H_
 
 //Define clock frequencies
-#define F_CPU 20000000
 #define PRESCALE 6
 #define PDIV 8
+#define F_CPU 20000000/PRESCALE			// Actually just fCLK__PER
+#define fCLK_PER F_CPU
 
 /*
 #if PRESCALE==2
@@ -41,6 +42,5 @@
 #endif
 */
 
-#define fCLK_PER (F_CPU / PRESCALE)
 
 #endif /* GLOBALVARS_H_ */

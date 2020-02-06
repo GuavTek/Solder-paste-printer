@@ -1,5 +1,5 @@
 /*
- * CFile1.c
+ * USART.c
  *
  * Created: 05-Feb-20 11:44:00
  *  Author: mikda
@@ -14,6 +14,7 @@ int move = 5;
 
 void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	
+	//Division needed to get desired baudrate
 	uint16_t baudDiv = (4 * fCLK_PER / baudrate);
 	
 	//Enable interrupts RX/TX complete
@@ -31,34 +32,32 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 		USART0.BAUD = baudDiv;
 		USART0.CTRLA = RA;
 		USART0.CTRLC = RC;
-		//TXD = output
-		PORTA.DIRSET = 1 << 0;	//PA0
+		PORTA.DIRSET = 1 << 0;		//PA0 is output
 		USART0.CTRLB = RB;
 		break;
 	case 1:
 		USART1.BAUD = baudDiv;
 		USART1.CTRLA = RA;
 		USART1.CTRLC = RC;
-		PORTC.DIRSET = 1 << 0;		//PC0
+		PORTC.DIRSET = 1 << 0;		//PC0 is output
 		USART1.CTRLB = RB;
 		break;
 	case 2:
 		USART2.BAUD = baudDiv;
 		USART2.CTRLA = RA;
 		USART2.CTRLC = RC;
-		PORTF.DIRSET = 1 << 0;		//PF0
+		PORTF.DIRSET = 1 << 0;		//PF0 is output
 		USART2.CTRLB = RB;
 		break;
 	case 3:
 		USART3.BAUD = baudDiv;
 		USART3.CTRLA = RA;
 		USART3.CTRLC = RC;
-		PORTB.DIRSET = 1 << 0;		//PB0
+		PORTB.DIRSET = 1 << 0;		//PB0 is output
 		USART3.CTRLB = RB;
 		break;
 	}
 }
-
 
 void USB_RX(){
 	char hasGet = USART3.RXDATAL;
@@ -70,7 +69,7 @@ void USB_RX(){
 		move -= 4;
 		PORTF.OUT &= ~(1 << 5);
 	}
-	USART3.TXDATAL = move;
+	USART3.TXDATAL = hasGet;
 }
 
 void USB_TX(){
