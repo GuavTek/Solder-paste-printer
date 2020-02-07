@@ -29,7 +29,7 @@ int main(void)
     /* Replace with your application code */
     while (1) 
     {
-		_delay_ms(100);
+		_delay_us(800);
 		if(move != 0){
 			if(move > 0){
 				PORTC.OUT |= 1 << MDir;
@@ -40,7 +40,7 @@ int main(void)
 			}
 			PORTD.OUT |= 1 << MStep;
 		}
-		_delay_ms(100);
+		_delay_us(800);
 		PORTD.OUT &= ~(1 << MStep);
 		
     }

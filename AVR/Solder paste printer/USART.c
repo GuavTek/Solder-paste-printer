@@ -10,7 +10,7 @@
 #include <avr/io.h>
 
 // Temporary, counts steps to move
-int move = 5;
+int move = 0;
 
 void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	
@@ -63,10 +63,10 @@ void USB_RX(){
 	char hasGet = USART3.RXDATAL;
 	if (hasGet == 'b')
 	{
-		move += 4;
+		move += 100;
 		PORTF.OUT |= 1 << 5;
 	} else if(hasGet == 'a'){
-		move -= 4;
+		move -= 100;
 		PORTF.OUT &= ~(1 << 5);
 	}
 	USART3.TXDATAL = hasGet;
