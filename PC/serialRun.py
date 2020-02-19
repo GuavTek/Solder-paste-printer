@@ -22,19 +22,24 @@ def intSerialport():
         pp.pprint("HWID: " + y.hwid)
 
     # connect to desired device
+    # str in the if statement must be changed
+    # if running in windows
     if ("nEDBG CMSIS-DAP" in y.description):
         ser.port = y.device
-        #show std. settings
+        # show std. settings and stores dict
+        # in s
         s = ser.get_settings()
         pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
         pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
         pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
         pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
         pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
-
+        # Input for entering the setting-loop
         i = input("Do you want to change settings, Y/N: ") # bug here
         while(i == "Y"):
-
+            # switchcase:
+            # sets name of the key you want to index
+            # in dict s
             def settings(i):
                 switcher = {
                     0: 'baudrate',
@@ -44,16 +49,18 @@ def intSerialport():
                     4: 'timeout',
                 }
                 return switcher.get(i, "invalid setting")
-
+            #prints the settings and their number index
             for x in range(5):
                 print(x, settings(x), sep="-")
-
+            #input for what setting you want to change
+            #set_value stores the key value from function settings.
             set_value = settings(int(input("What setting do you want to change: ")))
 
             while(set_value == "invalid setting"):
                 set_value = settings(int(input("What setting do you want to change: ")))
-
+            #input for setting new value
             new_value = input("Enter new value: ")
+            #Treatment of input stored in new_value
             if(new_value.isdigit() == True):
                 new_value = int(new_value)
             elif((set_value == 'stopbits') or (set_value == 'timeout')):
@@ -63,6 +70,7 @@ def intSerialport():
             else:
                 new_value = new_value
 
+            #new_value stored in dict s with key from set_value
             s[set_value] = new_value
             print(s)
             ser.apply_settings(s)
