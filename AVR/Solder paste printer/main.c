@@ -5,12 +5,11 @@
  * Author : mikda
  */ 
 
-#include "GlobalVars.h"
+#include "Header.h"
 #include <avr/io.h>
 #include <stdint.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
-#include "USART.h"
 
 #define MStep 4		//PD4
 #define MDir 2		//PC2

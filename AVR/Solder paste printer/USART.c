@@ -5,9 +5,10 @@
  *  Author: mikda
  */ 
 
-#include "GlobalVars.h"
+
 #include <stdint.h>
 #include <avr/io.h>
+#include "Header.h"
 
 // Temporary, counts steps to move
 int move = 0;
