@@ -5,9 +5,10 @@
  *  Author: mikda
  */ 
 
-#include "GlobalVars.h"
+
 #include <stdint.h>
 #include <avr/io.h>
+#include "Header.h"
 
 // Temporary, counts steps to move
 
@@ -15,6 +16,7 @@ int USARTn;
 uint8_t rx_head;
 uint8_t rx_tail;
 volatile uint8_t buffer_data[BUFFERSIZE + 1];
+
 
 
 
@@ -69,8 +71,10 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	}
 }
 
-void rx_data_read(uint8_t data)
+
+uint8_t RX_read()
 {
+    uint8_t data;
     uint8_t tail;
     tail = rx_tail;
     
@@ -91,7 +95,7 @@ void rx_data_read(uint8_t data)
         else
         {
             return data;
-            rx_data = tail;
+            rx_tail = tail;
         }
     }
 }
@@ -99,7 +103,7 @@ void rx_data_read(uint8_t data)
 
 
 
-uint8_t RX_buffer()
+void RX_buffer()
 {
     uint8_t rx_data;
     uint8_t head;
@@ -120,7 +124,6 @@ uint8_t RX_buffer()
         rx_head = head;
     }
 }
-
 void USB_TX(){
 	
 }
