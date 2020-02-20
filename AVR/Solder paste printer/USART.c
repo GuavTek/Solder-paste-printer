@@ -10,7 +10,14 @@
 #include <avr/io.h>
 
 // Temporary, counts steps to move
-int move = 5;
+
+int USARTn;
+uint8_t rx_head;
+uint8_t rx_tail;
+volatile uint8_t buffer_data[BUFFERSIZE + 1];
+
+
+
 
 void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	
@@ -29,11 +36,13 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	switch (portnum)
 	{
 	case 0:
+        USARTn = USART0
 		USART0.BAUD = baudDiv;
 		USART0.CTRLA = RA;
 		USART0.CTRLC = RC;
 		PORTA.DIRSET = 1 << 0;		//PA0 is output
 		USART0.CTRLB = RB;
+        
 		break;
 	case 1:
 		USART1.BAUD = baudDiv;
@@ -41,6 +50,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 		USART1.CTRLC = RC;
 		PORTC.DIRSET = 1 << 0;		//PC0 is output
 		USART1.CTRLB = RB;
+        
 		break;
 	case 2:
 		USART2.BAUD = baudDiv;
@@ -59,17 +69,56 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	}
 }
 
-void USB_RX(){
-	char hasGet = USART3.RXDATAL;
-	if (hasGet == 'b')
-	{
-		move += 4;
-		PORTF.OUT |= 1 << 5;
-	} else if(hasGet == 'a'){
-		move -= 4;
-		PORTF.OUT &= ~(1 << 5);
-	}
-	USART3.TXDATAL = hasGet;
+void rx_data_read(uint8_t data)
+{
+    uint8_t tail;
+    tail = rx_tail;
+    
+    if (rx_head == rx_tail)
+    {
+        //no data
+    }
+    
+    else
+    {
+        data = buffer_data[tail++]
+    
+        if(tail == BUFFERSIZE)
+        {
+            tail = 0;
+        }
+        
+        else
+        {
+            return data;
+            rx_data = tail;
+        }
+    }
+}
+
+
+
+
+uint8_t RX_buffer()
+{
+    uint8_t rx_data;
+    uint8_t head;
+    
+    //her skal realtime kommandoer plukkes opp
+    
+    rx_data = USARTn.RXDATAL;
+    head = rx_head;
+    
+    if(rx_head == BUFFERSIZE)
+    {
+        head = 0;
+    }
+    
+    if(rx_head != rx_tail)
+    {
+        buffer_data[head++] = rx_data;
+        rx_head = head;
+    }
 }
 
 void USB_TX(){
