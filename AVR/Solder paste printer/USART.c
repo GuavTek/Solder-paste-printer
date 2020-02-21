@@ -86,17 +86,16 @@ uint8_t RX_read()
     }
     else
     {
-        data = buffer_data[tail++]
+        data = rx_buffer_data[tail++]
     
         if(tail == RX_BUFFERSIZE)
         {
             tail = 0;
         }
-        else
-        {
-            return data;
-            rx_tail = tail;
-        }
+        
+        return data;
+        rx_tail = tail;
+        
     }
 }
 
