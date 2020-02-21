@@ -9,15 +9,22 @@
 #ifndef USART_H_
 #define USART_H_
 
+#ifndef RX_BUFFERSIZE
+    #define RX_BUFFERSIZE 128
+#endif
+#ifndef TX_BUFFERSIZE
+    #define TX_BUFFERSIZE 64;
+#endif
 // initializes a uart port with the chosen baudrate
 void USART_INIT(uint8_t portnum, uint32_t baudrate);
 
 // Handles the received data
-void USB_RX();
+void RX_buffer();
+uint8_t RX_read();
 
-// Does nothing (yet)
-void USB_TX();
+// Handles the transmitt data
+void TX_receive(uint8_t data);
+void TX_buffer();
 
-extern int move;
 
 #endif /* USART_H_ */

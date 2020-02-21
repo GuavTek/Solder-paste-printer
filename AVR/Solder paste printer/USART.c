@@ -13,10 +13,12 @@
 // Temporary, counts steps to move
 
 int USARTn;
-uint8_t rx_head;
-uint8_t rx_tail;
-volatile uint8_t buffer_data[BUFFERSIZE + 1];
-
+uint8_t rx_head = 0;
+volatile uint8_t rx_tail = 0;
+uint8_t tx_head = 0;
+volatile uint8_t tx_tail = 0;
+uint8_t rx_buffer_data[RX_BUFFERSIZE];
+uint8_t tx_buffer_data[TX_BUFFERSIZE];
 
 
 
@@ -78,20 +80,18 @@ uint8_t RX_read()
     uint8_t tail;
     tail = rx_tail;
     
-    if (rx_head == rx_tail)
+    if (rx_head == tail)
     {
-        //no data
+        return RX_NO_DATA;
     }
-    
     else
     {
         data = buffer_data[tail++]
     
-        if(tail == BUFFERSIZE)
+        if(tail == RX_BUFFERSIZE)
         {
             tail = 0;
         }
-        
         else
         {
             return data;
@@ -108,22 +108,56 @@ void RX_buffer()
     uint8_t rx_data;
     uint8_t head;
     
+    rx_data = USARTn.RXDATAL;
+    
     //her skal realtime kommandoer plukkes opp
     
-    rx_data = USARTn.RXDATAL;
-    head = rx_head;
     
-    if(rx_head == BUFFERSIZE)
+    head = rx_head + 1;
+    
+    if(rx_head == RX_BUFFERSIZE)
     {
         head = 0;
     }
     
-    if(rx_head != rx_tail)
+    if(head != rx_tail)
     {
-        buffer_data[head++] = rx_data;
+        buffer_data[rx_head] = rx_data;
         rx_head = head;
     }
 }
-void USB_TX(){
+
+
+void TX_receive(uint8_t data)
+{
+    uint8_t head;
+    head = tx_head;
+    
+    if(head == TX_BUFFERSIZE)
+    {  
+        head = 0;
+    }
+     //if (tx_head == tx_tail)
+    //{
+         //if tx is busy writing
+    //}
+    
+    tx_buffer_data[head++] = data;
+    tx_head = head;
+}
+
+
+void TX_buffer()
+{
+    uint8_t tail;
+    tail = tx_tail;
 	
+    USARTn.TXDATAL = tx_buffer_data[tail++];
+    
+    if (tx_tail == TX_BUFFERSIZE)
+    {
+        tail = 0;
+    }
+  
+    tail = tx_tail;
 }
