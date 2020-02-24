@@ -8,15 +8,15 @@
 #include <stdint.h>
 #include "Header.h"
 
-uint8_t ScanWord(const char* wrd[], uint8_t startIndex, char findChar){
+uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar){
 	for (uint8_t i = startIndex; i < MAX_WORD_SIZE; i++)
 	{
 		//Stop when we run out of digits
-		if (*wrd[i] == 0)
+		if (wrd[i] == 0)
 		{
 			return 0;
 		}
-		else if (*wrd[i] == findChar)
+		else if (wrd[i] == findChar)
 		{
 			return i;
 		}
@@ -24,7 +24,7 @@ uint8_t ScanWord(const char* wrd[], uint8_t startIndex, char findChar){
 	return 0;
 }
 
-const char* Slice(const char* original[], uint8_t startIndex, uint8_t stopIndex){
+const char* Slice(const char original[], uint8_t startIndex, uint8_t stopIndex){
 	int8_t length = stopIndex - startIndex + 1;
 	
 	//Nothing to slice
@@ -35,17 +35,17 @@ const char* Slice(const char* original[], uint8_t startIndex, uint8_t stopIndex)
 	char newSlice[length];
 	
 	for(uint8_t i = 0; i < length; i++){
-		newSlice[i] = *original[startIndex + i];
+		newSlice[i] = original[startIndex + i];
 	}
 	return newSlice;
 }
 
-uint8_t StringLength(const char* strng[], uint8_t startIndex){
+uint8_t StringLength(const char strng[], uint8_t startIndex){
 	uint8_t counter = 0;
 	
 	for (uint8_t i = startIndex; i < MAX_WORD_SIZE; i++)
 	{
-		if (*strng[i] == 0)
+		if (strng[i] == 0)
 		{
 			return counter;
 		} else {
@@ -53,4 +53,16 @@ uint8_t StringLength(const char* strng[], uint8_t startIndex){
 		}
 	}
 	return counter;
+}
+
+StepCount Micro2Step(int micrometers){
+	StepCount newStep;
+	int tempLength = micrometers / METRIC_STEP_LENGTH;
+	newStep.full = tempLength / 16;
+	newStep.micro = tempLength % 16;
+	return newStep;
+}
+
+void ReportStatus(ReturnCodes code){
+	
 }
