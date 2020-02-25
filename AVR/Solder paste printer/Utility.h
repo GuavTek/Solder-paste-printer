@@ -14,7 +14,9 @@ typedef enum {
 	NONE,
 	STOP_DETECTED,
 	NEW_BLOCK,
-	NOT_RECOGNIZED
+	NOT_RECOGNIZED,
+	BUFFER_FULL,
+	BUFFER_EMPTY
 } ReturnCodes;
 
 typedef struct {

@@ -11,6 +11,7 @@
 
 #include <avr/io.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include "Utility.h"
 #include "Config.h"

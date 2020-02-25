@@ -17,6 +17,8 @@
 #define fCLK_PER F_CPU
 
 
+#define BLOCK_BUFFER_SIZE 3
+
 //G-code
 #define MAX_G_LINE 0
 #define MAX_LINE_SIZE 256

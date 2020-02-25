@@ -7,14 +7,46 @@
 
 #include "Header.h"
 
+//Will return true when a character should be ignored
+bool IgnoreChar(char in);
 
-ReturnCodes ParseStream(const char buff[]){
+//Will look for the end of a word, returns true when a new word is detected
+bool WordEnd(char in);
+
+//Write to block buffer
+void WriteBlockBuffer(gc_block block);
+
+//Will parse and insert command-values in gc-block
+ReturnCodes ParseWord(const char wrd[], gc_block *block);
+
+uint8_t blockBufferHead = 0;
+uint8_t blockBufferTail = 0;
+
+gc_block blockBuffer[BLOCK_BUFFER_SIZE];
+
+ReturnCodes ParseStream(){
 	static gc_block currentBlock;
 	static char currentWord[MAX_WORD_SIZE];
 	static uint8_t wordIndex = 0;
+	static bool readyBlock = false;
+	
+	if (readyBlock)
+	{
+		//Check if buffer is full
+		if (BlockBufferAvailable() == BUFFER_FULL)
+		{
+			return BUFFER_FULL;
+		} 
+		else
+		{
+			WriteBlockBuffer(currentBlock);
+			readyBlock = false;
+		}
+		
+	}
 	
 	//Load next character from buffer
-	char nextChar;
+	char nextChar = RX_read();
 	
 	//Discard ignored chars
 	if (IgnoreChar(nextChar)){
@@ -30,19 +62,28 @@ ReturnCodes ParseStream(const char buff[]){
 		}
 		
 		ParseWord(currentWord,&currentBlock);
+		wordIndex = 0;	
+		
+		//Push the block into buffer unless it is full
+		readyBlock = true;
+		if(BlockBufferAvailable() == BUFFER_FULL){
+			return BUFFER_FULL;
+		} else {
+			WriteBlockBuffer(currentBlock);
+			readyBlock = false;
+		}
 				
-		//Push block out to buffer
-		wordIndex = 0;
 		return NEW_BLOCK;
 	}
 	
-	//The two first signs should always be included
+	//The two first chars should always be included
 	if(wordIndex < 2){
 		currentWord[wordIndex] = nextChar;
 		wordIndex++;
 	}
 	else
 	{
+		//Checks if a new word has started
 		if (WordEnd(nextChar)){
 			//Erase the unused part of the word buffer
 			for (uint8_t i = wordIndex; i < MAX_WORD_SIZE; i++){
@@ -239,29 +280,56 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 	return NONE;
 }
 
-uint8_t IgnoreChar(char in){
+bool IgnoreChar(char in){
 	if (in == ' ')
 	{
-		return 1;
+		return true;
 	} else if (in == '+')
 	{
-		return 1;
+		return true;
 	} else if (in == '%')
 	{
+		return true;
 	}
-	return 0;
+	return false;
 }
 
-uint8_t WordEnd(char in){
+bool WordEnd(char in){
 	if (in == '.')
 	{
-		return 0;
+		return false;
 	} else if (in == '-')
 	{
-		return 0;
+		return false;
 	} else if ((in <= '9') && (in >= '0'))
 	{
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
+}
+
+ReturnCodes BlockBufferAvailable(){
+	if(blockBufferTail == blockBufferHead){
+		return BUFFER_EMPTY;
+	}
+	
+	uint8_t tempTail = blockBufferTail - 1;
+	if (tempTail >= BLOCK_BUFFER_SIZE)
+	{
+		tempTail = (BLOCK_BUFFER_SIZE - 1);
+	}
+	
+	if (blockBufferHead == tempTail)
+	{
+		return BUFFER_FULL;
+	}
+	return NONE;
+}
+
+void WriteBlockBuffer(gc_block block){
+	blockBuffer[++blockBufferHead] = block;
+}
+
+gc_block ReadBlockBuffer(){
+	return blockBuffer[++blockBufferTail];
 }

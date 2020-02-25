@@ -21,11 +21,6 @@ enum MotionModes {
 	Home
 };
 
-enum BlockType {
-	Move,
-	Command
-};
-
 enum CoordUnit {
 	millimeter,
 	Inch
@@ -49,18 +44,14 @@ typedef struct {
 } gc_block;
 
 
-//Will return 0 when a character should be ignored
-uint8_t IgnoreChar(char in);
+//Checks the status of the block buffer
+ReturnCodes BlockBufferAvailable();
 
-//Will look for the end of a word, returns 1 when a new word is detected
-uint8_t WordEnd(char in);
+//Read from block buffer
+gc_block ReadBlockBuffer();
 
 //Will parse the stream of characters
-ReturnCodes ParseStream(const char buff[]);
-
-//Will parse and insert command-values in gc-block
-ReturnCodes ParseWord(const char wrd[], gc_block *block);
-
+ReturnCodes ParseStream();
 
 
 #endif /* GPARSE_H_ */
