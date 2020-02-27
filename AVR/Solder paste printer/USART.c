@@ -10,9 +10,7 @@
 #include <avr/io.h>
 #include "Header.h"
 
-// Temporary, counts steps to move
 
-int USARTn;
 uint8_t rx_head = 0;
 volatile uint8_t rx_tail = 0;
 uint8_t tx_head = 0;
@@ -40,7 +38,6 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	switch (portnum)
 	{
 	case 0:
-        USARTn = USART0
 		USART0.BAUD = baudDiv;
 		USART0.CTRLA = RA;
 		USART0.CTRLC = RC;
@@ -82,11 +79,11 @@ uint8_t RX_read()
     
     if (rx_head == tail)
     {
-        return RX_NO_DATA;
+        return 0;
     }
     else
     {
-        data = rx_buffer_data[tail++]
+        data = rx_buffer_data[tail++];
     
         if(tail == RX_BUFFERSIZE)
         {
@@ -121,7 +118,7 @@ void RX_buffer()
     
     if(head != rx_tail)
     {
-        buffer_data[rx_head] = rx_data;
+        rx_buffer_data[rx_head] = rx_data;
         rx_head = head;
     }
 }

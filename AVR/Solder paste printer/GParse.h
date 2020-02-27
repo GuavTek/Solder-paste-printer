@@ -39,6 +39,8 @@ typedef struct {
 	enum MotionModes motion;
 	uint8_t dispenseRate;
 	uint8_t moveSpeed;
+	bool dispenseEnable;
+	uint32_t dwellTime;
 	enum CoordMode coordinateMode;
 	enum CoordUnit coordinateUnit;
 } gc_block;

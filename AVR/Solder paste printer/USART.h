@@ -9,12 +9,10 @@
 #ifndef USART_H_
 #define USART_H_
 
-#ifndef RX_BUFFERSIZE
-    #define RX_BUFFERSIZE 128
-#endif
-#ifndef TX_BUFFERSIZE
-    #define TX_BUFFERSIZE 64;
-#endif
+
+#define RX_BUFFERSIZE 128
+#define TX_BUFFERSIZE 64
+
 // initializes a uart port with the chosen baudrate
 void USART_INIT(uint8_t portnum, uint32_t baudrate);
 
