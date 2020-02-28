@@ -24,20 +24,24 @@ uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar){
 	return 0;
 }
 
-const char* Slice(const char original[], uint8_t startIndex, uint8_t stopIndex){
+void Slice(const char original[], char sliced[], uint8_t startIndex, uint8_t stopIndex){
 	int8_t length = stopIndex - startIndex + 1;
 	
+	//Clear sliced buffer
+	for (uint8_t i = 0; i < MAX_WORD_SIZE; i++)
+	{
+		sliced[i] = 0;
+	}
+
 	//Nothing to slice
 	if(length < 1){
-		return "0";
+		return;
 	}
 	
-	char newSlice[length];
 	
 	for(uint8_t i = 0; i < length; i++){
-		newSlice[i] = original[startIndex + i];
+		sliced[i] = original[startIndex + i];
 	}
-	return newSlice;
 }
 
 uint8_t StringLength(const char strng[], uint8_t startIndex){
@@ -55,11 +59,12 @@ uint8_t StringLength(const char strng[], uint8_t startIndex){
 	return counter;
 }
 
-StepCount Micro2Step(int micrometers){
+StepCount Metric2Step(float millimeters){
 	StepCount newStep;
-	int tempLength = micrometers / METRIC_STEP_LENGTH;
-	newStep.full = tempLength / 16;
-	newStep.micro = tempLength % 16;
+	float tempLength = millimeters / METRIC_STEP_LENGTH;
+	newStep.full = floor(tempLength);
+	tempLength -= newStep.full;
+	newStep.micro = round(tempLength * 16);
 	return newStep;
 }
 

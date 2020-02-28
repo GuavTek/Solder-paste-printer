@@ -17,7 +17,7 @@
 
 int main(void)
 {
-	USART_INIT(3, 19200);
+	USART_INIT(3, 9600);
 	//Set clk_per prescaler not working?
 //	CLKCTRL.MCLKCTRLB = (PDIV << 1)|(1 << 0);
 	PORTF.DIRSET = 1 << 5;	//LED
@@ -28,29 +28,17 @@ int main(void)
     /* Replace with your application code */
     while (1) 
     {
-		_delay_us(800);
-		if(move != 0){
-			if(move > 0){
-				PORTC.OUT |= 1 << MDir;
-				move--;
-			} else{
-				PORTC.OUT &= ~(1 << MDir);
-				move++;
-			}
-			PORTD.OUT |= 1 << MStep;
-		}
-		_delay_us(800);
-		PORTD.OUT &= ~(1 << MStep);
-		
+		_delay_ms(1000);
+		PORTF.OUTTGL = PIN5_bm;
     }
 }
 
 ISR(USART3_RXC_vect){
-	USB_RX();
+	ParseStream();
 }
 
 /*
 ISR(USART3_TXC_vect){
-	USB_TX();
+	
 }
 */

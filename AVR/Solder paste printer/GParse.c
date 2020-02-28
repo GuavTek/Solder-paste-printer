@@ -30,6 +30,7 @@ ReturnCodes ParseStream(){
 	static uint8_t wordIndex = 0;
 	static bool readyBlock = false;
 	
+	//Skips if current block hasn't been placed in buffer yet
 	if (readyBlock)
 	{
 		//Check if buffer is full
@@ -47,6 +48,7 @@ ReturnCodes ParseStream(){
 	
 	//Load next character from buffer
 	char nextChar = RX_read();
+	//char nextChar = USARTn.RXDATAL;
 	
 	//Discard ignored chars
 	if (IgnoreChar(nextChar)){
@@ -55,7 +57,6 @@ ReturnCodes ParseStream(){
 	
 	//Detect line end
 	if ((nextChar == '\r' || nextChar == '\n') && wordIndex > 0){
-		
 		//Erase the unused part of the word buffer
 		for (uint8_t i = wordIndex; i < MAX_WORD_SIZE; i++){
 			currentWord[i] = 0;
@@ -72,7 +73,7 @@ ReturnCodes ParseStream(){
 			WriteBlockBuffer(currentBlock);
 			readyBlock = false;
 		}
-				
+
 		return NEW_BLOCK;
 	}
 	
@@ -85,6 +86,7 @@ ReturnCodes ParseStream(){
 	{
 		//Checks if a new word has started
 		if (WordEnd(nextChar)){
+
 			//Erase the unused part of the word buffer
 			for (uint8_t i = wordIndex; i < MAX_WORD_SIZE; i++){
 				currentWord[i] = 0;
@@ -111,14 +113,16 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 	//If float, convert fraction separately
 	if (dotPos)
 	{
-		num = atoi(Slice(wrd, 1, dotPos - 1));
+		char tempSlice[MAX_WORD_SIZE];
+		Slice(wrd, tempSlice, 1, dotPos - 1);
+		num = atoi(tempSlice);
 		precision = StringLength(wrd, dotPos + 1);
-		fraction = atoi(Slice(wrd, dotPos + 1, dotPos + precision));
+		Slice(wrd, tempSlice, dotPos + 1, dotPos + precision);
+		fraction = atoi(tempSlice);
 		
 	} else {
-		num = atoi(Slice(wrd, 1, MAX_WORD_SIZE));
+		num = atoi(wrd + 1);
 	}
-	
 	
 	//Detect if it is real-time command
 	if(letter > 0x7F){
@@ -154,6 +158,7 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 					}
 					case 4: {
 						block->motion = Dwell;
+						block->dwellTime = parameter;
 						break;
 					}
 					case 20: {
@@ -182,17 +187,17 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 			
 			case 'I':{
 				//Arc center X
-				block->arcCentre.x = Micro2Step(num * 10000 + fraction * pow(10, 4-precision));
+				block->arcCentre.x = Metric2Step(num + (fraction / pow(10, precision)));
 				break;	
 			}
 			case 'J':{
 				//Arc center Y
-				block->arcCentre.y = Micro2Step(num * 10000 + fraction * pow(10, 4-precision));
+				block->arcCentre.y = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			case 'K':{
 				//Arc center Z
-				block->arcCentre.z = Micro2Step(num * 10000 + fraction * pow(10, 4-precision));
+				block->arcCentre.z = Metric2Step(num + (fraction / pow(10, precision)));
 				break;	
 			}
 			case 'M':{
@@ -215,12 +220,12 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 					}
 					case 3: case 4: {
 						//Spindle (dispenser) on
-						
+						block->dispenseEnable = true;
 						break;
 					}
 					case 5: {
 						//Spindle (dispenser) off
-						
+						block->dispenseEnable = false;
 						break;
 					}
 					case 30: {
@@ -258,17 +263,17 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 			}
 			case 'X':{
 				//Position X
-				block->pos.x = Micro2Step(num * 10000 + fraction * pow(10, 4-precision));
+				block->pos.x = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			case 'Y':{
 				//Position Y
-				block->pos.y = Micro2Step(num * 10000 + fraction * pow(10, 4-precision));
+				block->pos.y = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			case 'Z':{
 				//Position Z
-				block->pos.z = Micro2Step(num * 10000 + fraction * pow(10, 4-precision));
+				block->pos.z = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			default:{
@@ -327,9 +332,22 @@ ReturnCodes BlockBufferAvailable(){
 }
 
 void WriteBlockBuffer(gc_block block){
-	blockBuffer[++blockBufferHead] = block;
+	blockBufferHead++;
+
+	if (blockBufferHead >= BLOCK_BUFFER_SIZE)
+	{
+		blockBufferHead = 0;
+	}
+
+	blockBuffer[blockBufferHead] = block;
 }
 
 gc_block ReadBlockBuffer(){
-	return blockBuffer[++blockBufferTail];
+	blockBufferTail++;
+	if (blockBufferTail >= BLOCK_BUFFER_SIZE)
+	{
+		blockBufferTail = 0;
+	}
+	
+	return blockBuffer[blockBufferTail];
 }
