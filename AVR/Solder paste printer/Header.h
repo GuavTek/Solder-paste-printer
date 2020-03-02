@@ -11,9 +11,11 @@
 
 #include <avr/io.h>
 #include <stdlib.h>
+#include <avr/interrupt.h>
 #include "Utility.h"
 #include "Config.h"
 #include "GParse.h"
+#include "stepper.h"
 #include "USART.h"
 
 #endif /* HEADER_H_ */
