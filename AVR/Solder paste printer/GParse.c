@@ -40,6 +40,7 @@ ReturnCodes ParseStream(){
 		} 
 		else
 		{
+			ReportStatus(BUFFER_AVAILABLE);
 			WriteBlockBuffer(currentBlock);
 			readyBlock = false;
 		}
@@ -68,6 +69,7 @@ ReturnCodes ParseStream(){
 		//Push the block into buffer unless it is full
 		readyBlock = true;
 		if(BlockBufferAvailable() == BUFFER_FULL){
+			ReportStatus(BUFFER_FULL);
 			return BUFFER_FULL;
 		} else {
 			WriteBlockBuffer(currentBlock);
@@ -277,7 +279,7 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 				break;
 			}
 			default:{
-				ReportStatus(NOT_RECOGNIZED);
+				ReportStatus(NOT_RECOGNIZED, letter);
 				return NOT_RECOGNIZED; //Unrecognized command
 			}
 		}

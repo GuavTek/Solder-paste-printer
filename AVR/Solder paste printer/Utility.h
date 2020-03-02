@@ -15,6 +15,7 @@ typedef enum {
 	NEW_BLOCK,
 	NOT_RECOGNIZED,
 	BUFFER_FULL,
+	BUFFER_AVAILABLE,
 	BUFFER_EMPTY
 } ReturnCodes;
 
@@ -43,9 +44,6 @@ void Slice (const char original[], char sliced[], uint8_t startIndex, uint8_t st
 
 //Find number of characters after startIndex
 uint8_t StringLength(const char strng[], uint8_t startIndex);
-
-//Sends error statuses to pc
-void ReportStatus(ReturnCodes code);
 
 //Converts millimeters to steps
 StepCount Metric2Step(float millimeters);

@@ -68,6 +68,3 @@ StepCount Metric2Step(float millimeters){
 	return newStep;
 }
 
-void ReportStatus(ReturnCodes code){
-	
-}
