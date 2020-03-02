@@ -139,6 +139,12 @@
     <Compile Include="Config.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="Feedback.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="Feedback.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="GParse.c">
       <SubType>compile</SubType>
     </Compile>

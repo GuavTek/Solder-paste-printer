@@ -16,6 +16,12 @@
 #define F_CPU 20000000/PRESCALE			// Actually just fCLK__PER
 #define fCLK_PER F_CPU
 
+//USB com port
+#define USARTn USART3
+
+#define BLOCK_BUFFER_SIZE 3
+
+#define METRIC_STEP_LENGTH 0.254;	//Length of a step in millimeters
 
 //G-code
 #define MAX_G_LINE 0
@@ -25,6 +31,5 @@
 #define CMD_X_SIZE 8
 #define CMD_Y_SIZE 8
 #define CMD_Z_SIZE 4
-
 
 #endif /* CONFIG_H_ */

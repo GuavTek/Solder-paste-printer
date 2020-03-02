@@ -9,6 +9,8 @@
 #ifndef GPARSE_H_
 #define GPARSE_H_
 
+#include "Utility.h"
+
 //Types of motion
 enum MotionModes {
 	Rapid_position,
@@ -19,32 +21,39 @@ enum MotionModes {
 	Home
 };
 
-enum BlockType {
-	Move,
-	Command
+enum CoordUnit {
+	millimeter,
+	Inch
 };
 
-typedef struct  {
-	int x;
-	int y;
-	int z;
-} Vector3;
+enum CoordMode {
+	absolute,
+	incremental
+};
 
 //Should contain all parameters of a command
-typedef struct  {
-	Vector3 pos;
+typedef struct {
+	StepVector3 pos;
+	StepVector3 arcCentre;
+	uint32_t arcRadius;
 	enum MotionModes motion;
-	uint8_t feedrate;
+	uint8_t dispenseRate;
+	uint8_t moveSpeed;
+	bool dispenseEnable;
+	uint32_t dwellTime;
+	enum CoordMode coordinateMode;
+	enum CoordUnit coordinateUnit;
 } gc_block;
 
 
+//Checks the status of the block buffer
+ReturnCodes BlockBufferAvailable();
+
+//Read from block buffer
+gc_block ReadBlockBuffer();
+
 //Will parse the stream of characters
-uint8_t ParseLine(const char* line[]);
-
-//Will parse and insert command-values in gc-block
-//Returns status code
-uint8_t ParseWord(const char* wrd[], gc_block *block);
-
+ReturnCodes ParseStream();
 
 
 #endif /* GPARSE_H_ */
