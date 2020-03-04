@@ -1,15 +1,22 @@
+/* 
+ * File:   stepper.c
+ * Author: oletobiasmoen
+ *
+ * Created on February 28, 2020, 1:17 PM
+ */
+
 #include "Header.h"
 
-
-st_block st_data[block_buffer];
+st_block st;
 step_counter counter;
 step_counter counter_coard;
-uint8_t steper_flag;
-
+/*Stepper flags is set to seven by default, this because the first
+ if statement in the getline function*/
 
 void prescale_select(uint8_t sel)
 {
     TCA0.CTRLD = (1 << SPLITM);
+    
     switch (sel)
     {
         case 1:
@@ -30,7 +37,7 @@ void prescale_select(uint8_t sel)
         case 6: 
             TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV256_gc;   
         default:
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV1024_gc
+            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV1024_gc;
     }   
 }
 
@@ -59,148 +66,209 @@ void stepper_TCB_init()
 
 
 
-void GetLine(gc_block *blockBuffer, st_block *st_data)
+void PrepStep(st_block *st)
 {
+    gc_block GetLine, *pp;
+    uint8_t coordinate_mode;
+    uint8_t prescale;
+    uint8_t buffer_state = BlockBufferAvailable();
     
-    if (data_flag & (1 << NEW_DATA))
-    {    
-        if ((steper_flag & (1 << EXE_X_LINE)) && (data_flag & (1 << NEW_DATA_X)))
-        {
-                    
-            for(uint32_t count = 0 ; count <= blockBufferTail ; count++)
-                    
-            {
-                st_data -> s_axis.x_s[count] = blockBuffer -> pos.x[count];
-                st_data -> x_prescale[count] = blockBuffer -> moveSpeed[count];
-                st_data -> x_dir[count] = XDir;
-            }        
+    pp = &GetLine;
+    
+    if ((buffer_state != BUFFER_EMPTY) && (st->stepper_flag == 7));
+    {
+        GetLine = ReadBlockBuffer();
+
+        coordinate_mode = pp-> coordinateMode;
+        prescale = pp-> motion;
+        st-> s_pos = pp-> pos;
         
-            steper_flag |= (1 << X_STEP_READY);
+        switch(coordinate_mode)
+        {
+            case(absolute):
+                
+                if(st->s_pos.x > st->s_count.x_c)
+                {    
+                    st->x_direction = pos_dir;
+                }
+                else
+                {
+                    st->x_direction = neg_dir;
+                }
+                
+                if(st->s_pos.y > st->s_count.y_c)
+                {    
+                    st->y_direction = pos_dir;
+                }
+                else
+                {
+                    st->y_direction = neg_dir;
+                }
+                
+                if(st->s_pos.z > st->s_count.z_c)
+                {    
+                    st->z_direction = pos_dir;
+                }
+                else
+                {
+                    st->z_direction = neg_dir;
+                }
+                
+                st->s_delta = st->s_pos;
+                st->s_pos = abs(st->s_delta - st->s_count);
+                
+                break;
+                
+            case(incremental):
+                
+                if(st->s_pos.x > 0)
+                {
+                    st->x_direction = pos_dir;
+                }
+                else
+                {
+                    st->x_direction = neg_dir;
+                }
+                
+                if(st->s_pos.y > 0)
+                {
+                    st->y_direction = pos_dir;
+                }
+                else
+                {
+                    st->y_direction = neg_dir;
+                }
+                
+                if(st->s_pos.z > 0)
+                {
+                    st->z_direction = pos_dir;
+                }
+                else
+                {
+                    st.z_direction = neg_dir;
+                }
+                
+                st->s_pos = abs(st->s_pos);
+                
+                break;        
+        }
+        
+        switch(prescale)
+        {
+            case(0):
+                prescale_select(0);
+                break;
+            case(1):
+                prescale_select(6);
+                break;
+            case(2):
+                prescale_select(6);
+                break;
+            case(3):
+                prescale_select(6);
+                break;
+            case(4):
+                prescale_select(6);
+                break;
+            /*case(speed):
+                prescale_select(6);
+                break;*/
+        }
+                
+                    
+        if (st->s_pos.x > 0)
+        {
+            st->stepper_flag |= (1 << X_STEP_READY) & ~(1 << X_STEP_EXE);
+            st->s_count = 0;
             TCB0.INTCTRL |= TCB_CAPT_bm; //enable interrupt 
             TCB0.CNT = 0; //reset counter
-                                                   
         }
-        
-        if ((steper_flag & (1 << EXE_Y_LINE)) && (data_flag & (1 << NEW_DATA_Y)))
+                
+        if (st->s_pos.y > 0)
         {
-            for(uint32_t count = 0 ; count <= blockBufferTail  ; count++)
-                    
-            {
-                st_data -> s_axis.y_s[count] = blockBuffer[count] -> pos.y;
-                st_data -> y_prescale[count] = blockBuffer[count] -> moveSpeed;
-                st_data -> y_dir[count] = ZDir; // needs to be config
-            }
-            
-            step_flag |= (1 << Y_STEP_READY)
-            TCB1.INTCTRL |= TCB_CAPT_bm; //enable interrupt 
-            TCB1.CNT = 0; //reset counter
-            
+            st->stepper_flag |= (1 << Y_STEP_READY) & ~(1 << Y_STEP_EXE);
+            TCB1.INTCTRL |= TCB_CAPT_bm;
+            TCB1.CNT = 0;
         }
-        
-        if ((step_flags & (1 << EXE_Y_LINE)) && (NEW_DATA_Y == 1))
+                
+        if(st->s_pos.z > 0)
         {
-            for(uint32_t count = 0 ; count > blockBufferTail ; count++)
-                    
-            {
-                st_data -> s_axis.z_s[count] = blockBuffer[count] -> pos.y;
-                st_data -> z_prescale[count] = blockBuffer[count] -> moveSpeed;
-                st_data -> z_dir[count] = ZDir; // needs to be config
-            }
-            
-            steper_flag = (1 << Z_STEP_READY);
-            TCB2.INTCTRL |= TCB_CAPT_bm; //enable interrupt 
-            TCB2.CNT = 0; //reset counter
-        } 
+            st->stepper_flag |= (1 << Z_STEP_READY) & ~(1 << Z_STEP_EXE);
+            TCB2.INTCTRL |= TCB_CAPT_bm;
+            TCB2.CNT = 0;
+        }
     }
 }
 
 
-ISR() //TCB0 vector
+ISR(TIMER0_COMPB_vect) //TCB0 vector
 {   
-    
-    uint32_t compare = st_data ->s_axis.x_s[counter_coard.x_c];
-
-    if(steper_flag & (1 << X_STEP_READY))
+    if(st.stepper_flag & (1 << X_STEP_READY))
     {
         PORTA.DIR |= PIN2_bm;
+        PORTC.DIR |= (st.x_direction << PIN2);
         
-        if((counter.x_c) == (compare - 1))
+        if((st.s_count.x_c) == (st.s_pos.x - 1))
         {
-            counter.x_c  = 0;
-            counter_coard.x_c++;
+            st.stepper_flag |= (1 << X_STEP_EXE) & ~(1 << X_STEP_READY);
+            PORTA.DIR &= ~PIN2_bm; //clear PA2 as output when line is done
+            TCB0.INTCTRL &=  ~TCB_CAPT_bm; // disable interrupt when line is done
+            TCB0.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
+            return 0;
         }
         else
         {
-            counter.x_c++;
+            st.s_count.x_c++;
         }
-        
-        if(counter_coard.x_c == blockBufferTail)
-        {
-            counter_coard.x_c = 0;
-            steper_flag |= (1 << EXE_X_LINE) & ~(1 << X_STEP_READY);
-            PORTA.DIR &= ~PIN2_bm; //clear PA2 as output when line is done
-            TCB0.INTCTRL &=  ~TCB_CAPT_bm; // disable interrupt when line is done
-        }
-    } 
-    
+    }  
     TCB0.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
 }
 
-ISR() //TCB1 vector
+ISR(TIMER1_COMPB_vect) //TCB1 vector
 {
-    uint32_t compare = st_data ->s_axis.y_s[counter_coard.y_c];
-
-    if(steper_flag & (1 << Y_STEP_READY))
+    if(st.stepper_flag & (1 << Y_STEP_READY))
     {
-        PORTA.DIR |= PIN2_bm;
+        PORTA.DIR |= PIN3_bm;
+        PORTA.DIR |= (st.y_direction << PIN5);
         
-        if((counter.y_c) == (compare - 1))
+        if(st.s_count.y_c == st.s_pos.y - 1)
         {
-            counter.y_c  = 0;
-            counter_coard.y_c++;
+            st.stepper_flag |= (1 << Y_STEP_EXE) & ~(1 << Y_STEP_READY);
+            PORTA.DIR &= ~PIN3_bm; //clear PA2 as output when line is done
+            TCB1.INTCTRL &=  ~TCB_CAPT_bm; // disable interrupt when line is done
+            TCB1.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
+            return 0;
         }
         else
         {
-            counter.y_c++;
+            st.s_count.y_c++;
         }
-        
-        if(counter_coard.y_c == blockBufferTail)
-        {
-            counter_coard.y_c = 0;
-            steper_flag |= (1 << EXE_Y_LINE) & ~(1 << Y_STEP_READY);
-            PORTA.DIR &= ~PIN3_bm; //clear PA2 as output when line is done
-            TCB1.INTCTRL &=  ~TCB_CAPT_bm; // disable interrupt when line is done
-        }
-    
+    }
     
     TCB1.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
 }
 
-ISR() //TCB2 vector
+ISR(TIMER2_COMPB_vect) //TCB2 vector
 {       
-    uint32_t compare = st_data ->s_axis.z_s[counter_coard.z_c];
+    
 
-    if(steper_flag & (1 << Z_STEP_READY))
+    if(st.stepper_flag & (1 << Z_STEP_READY))
     {
         PORTC.DIR |= PIN0_bm;
+        PORTA.DIR |= (st.z_direction << PIN6);
         
-        if((counter.y_c) == (compare - 1))
+        if(st.s_count.z_c == st.s_pos.z - 1)
         {
-            counter.y_c  = 0;
-            counter_coard.y_c++;
+            st.s_count.z_c  = 0;
+            st.stepper_flag |= (1 << Z_STEP_EXE) & ~(1 << Z_STEP_READY);
+            PORTC.DIR &= ~PIN0_bm; //clear PINC0 as output when line is done
+            TCB2.INTCTRL &= ~TCB_CAPT_bm; // disable interrupt when line is done
+            return 0;
         }
         else
         {
-            counter.y_c++;
+            st.s_count.z_c++;
         }
-        
-        if(counter_coard.y_c == blockBufferTail)
-        {
-            counter_coard.y_c = 0;
-            steper_flag |= (1 << EXE_Y_LINE) & ~(1 << Y_STEP_READY);
-            PORTC.DIR &= ~PIN0_bm; //clear PINC0 as output when line is done
-            TCB2.INTCTRL &=  ~TCB_CAPT_bm; // disable interrupt when line is done
-        }
+    }    
     TCB2.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag   
 }
-

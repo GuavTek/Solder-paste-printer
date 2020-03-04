@@ -11,12 +11,9 @@
 
 #include <avr/io.h>
 #include <stdlib.h>
-<<<<<<< HEAD
 #include <avr/interrupt.h>
-=======
 #include <stdbool.h>
 #include <math.h>
->>>>>>> f02e13aa166c5b876309867dada4ea082c3fe0f8
 #include "Utility.h"
 #include "Config.h"
 #include "GParse.h"

@@ -21,15 +21,15 @@ extern "C" {
 
 
 /*Stepper Flags */
-#define EXE_X_LINE      0
-#define EXE_Y_LINE      1
-#define EXE_Z_LINE      2
+#define X_STEP_EXE      0
+#define Y_STEP_EXE      1
+#define Z_STEP_EXE      2
 #define X_STEP_READY    3
 #define Y_STEP_READY    4
 #define Z_STEP_READY    5
 
 
-enum StepMode 
+enum MoveSpeed 
 {
     full_step,
     half_step,
@@ -38,45 +38,46 @@ enum StepMode
     sixteen_step
 };
 
-
 enum DirSet
 {
     neg_dir,
     pos_dir
 };
 
+typedef struct
+{
+    uint32_t    x,
+                y,
+                z; 
+}s_vector;
+
 
 typedef struct
 {
-    uint32_t    x_s,
-                y_s,
-                z_s = 0;
-    
-}step_vector;
+    int32_t     x,
+                y,
+                z;
+   
+}temp_pos;
 
 
 typedef struct
 {
-  volatile uint32_t     x_c,
-                        y_c,
-                        z_c;
+    volatile uint32_t   x_c = 0,
+                        y_c = 0,
+                        z_c = 0;
 }step_counter;
 
 
 typedef struct
-{   
-    step_vector     s_axis;
+{
+    s_vector        s_pos; 
+    temp_pos        s_delta;
+    step_counter    s_count;
+    uint8_t         stepper_flag = 7;
+    enum DirSet     x_direction,
+                    y_direction,
+                    z_direction;
     
-   
-    enum StepMode   x_prescale,
-                    y_prescale,
-                    z_prescale;
-    
-    
-    
-    enum DirSet     x_dir,
-                    y_dir,
-                    z_dir;
-    
-    
+    enum MoveSpeed s_velosity;
 }st_block;
