@@ -81,7 +81,7 @@ void PrepStep(st_block *st)
 
         coordinate_mode = pp-> coordinateMode;
         prescale = pp-> motion;
-        st-> s_pos = pp-> pos;
+        st->s_pos = pp-> pos;
         
         switch(coordinate_mode)
         {
@@ -250,8 +250,6 @@ ISR(TIMER1_COMPB_vect) //TCB1 vector
 
 ISR(TIMER2_COMPB_vect) //TCB2 vector
 {       
-    
-
     if(st.stepper_flag & (1 << Z_STEP_READY))
     {
         PORTC.DIR |= PIN0_bm;
@@ -259,7 +257,6 @@ ISR(TIMER2_COMPB_vect) //TCB2 vector
         
         if(st.s_count.z_c == st.s_pos.z - 1)
         {
-            st.s_count.z_c  = 0;
             st.stepper_flag |= (1 << Z_STEP_EXE) & ~(1 << Z_STEP_READY);
             PORTC.DIR &= ~PIN0_bm; //clear PINC0 as output when line is done
             TCB2.INTCTRL &= ~TCB_CAPT_bm; // disable interrupt when line is done
