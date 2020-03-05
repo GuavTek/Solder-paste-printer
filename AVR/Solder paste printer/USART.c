@@ -11,15 +11,15 @@
 #include "Header.h"
 
 
-uint8_t rx_head = 0;
-volatile uint8_t rx_tail = 0;
+volatile uint8_t rx_head = 0;
+uint8_t rx_tail = 0;
 uint8_t tx_head = 0;
 volatile uint8_t tx_tail = 0;
 uint8_t rx_buffer_data[RX_BUFFERSIZE];
 uint8_t tx_buffer_data[TX_BUFFERSIZE];
 
-
-
+bool RX_Full = false;
+bool prevRX_Full = false;
 
 void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	
@@ -27,13 +27,13 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	uint16_t baudDiv = (4 * fCLK_PER / baudrate);
 	
 	//Enable interrupts RX/TX complete
-	uint8_t RA = /* USART_TXCIE_bm | */ USART_RXCIE_bm;
+	uint8_t RA = USART_TXCIE_bm | USART_RXCIE_bm;
 	
 	//Enable tx and rx
 	uint8_t RB = USART_RXEN_bm|USART_TXEN_bm;
 	
 	//Set no parity, 8 data-bits
-	uint8_t RC = (0x0 << 4)|(0x3);
+	uint8_t RC = USART_PMODE_DISABLED_gc|(0x3);
 	
 	switch (portnum)
 	{
@@ -70,43 +70,43 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	}
 }
 
-
 uint8_t RX_read()
 {
     uint8_t data;
     uint8_t tail;
-    tail = rx_tail;
+    tail = rx_tail + 1;
+	
+	//No data
+	if (rx_head == rx_tail)
+	{
+		return 0;
+	}
+	
+	if(tail == RX_BUFFERSIZE)
+	{
+		tail = 0;
+	}
     
-    if (rx_head == tail)
-    {
-        return 0;
-    }
-    else
-    {
-        data = rx_buffer_data[tail++];
-    
-        if(tail == RX_BUFFERSIZE)
-        {
-            tail = 0;
-        }
+    data = rx_buffer_data[tail];
+    rx_tail = tail;
+		
+	// Signal that there is space in buffer
+	if (RX_Count() > 20)
+	{
+		RX_Full = false;
+	}
         
-        return data;
-        rx_tail = tail;
-        
-    }
+	return data;
 }
 
-
-
-
-void RX_buffer()
+void RX_write()
 {
     uint8_t rx_data;
     uint8_t head;
     
     rx_data = USARTn.RXDATAL;
     
-    //her skal realtime kommandoer plukkes opp
+    //real-time commands should be picked out here
     
     
     head = rx_head + 1;
@@ -118,42 +118,121 @@ void RX_buffer()
     
     if(head != rx_tail)
     {
-        rx_buffer_data[rx_head] = rx_data;
+        rx_buffer_data[head] = rx_data;
         rx_head = head;
-    }
+    } else {
+		ReportStatus(BUFFER_OVERFLOW, 'R');
+	}
+	
+	// Signal that buffer is full (soon)
+	if (RX_Count() < 10)
+	{
+		RX_Full = true;
+	}
 }
 
+// Returns available buffer space
+uint8_t RX_Count(){
+	int16_t cnt = rx_tail - rx_head;
+	
+	if (cnt < 0)
+	{
+		cnt += RX_BUFFERSIZE;
+	}
+	return cnt;
+}
 
-void TX_receive(uint8_t data)
+ReturnCodes RX_available(){
+	if (rx_head == rx_tail)
+	{
+		return BUFFER_EMPTY;
+	}
+	
+	uint8_t head = rx_head + 1;
+	if (head == RX_BUFFERSIZE)
+	{
+		head = 0;
+	}
+	
+	if (head == rx_tail)
+	{
+		return BUFFER_FULL;
+	}
+	return BUFFER_AVAILABLE;
+}
+
+void TX_write(uint8_t data)
 {
-    uint8_t head;
-    head = tx_head;
+    uint8_t head = tx_head + 1;
     
     if(head == TX_BUFFERSIZE)
     {  
         head = 0;
     }
-     //if (tx_head == tx_tail)
-    //{
-         //if tx is busy writing
-    //}
     
-    tx_buffer_data[head++] = data;
+    tx_buffer_data[head] = data;
     tx_head = head;
 }
 
-
-void TX_buffer()
+void TX_read()
 {
-    uint8_t tail;
-    tail = tx_tail;
 	
-    USARTn.TXDATAL = tx_buffer_data[tail++];
-    
-    if (tx_tail == TX_BUFFERSIZE)
-    {
-        tail = 0;
-    }
-  
-    tail = tx_tail;
+	// The state of the RX buffer has high priority
+	if (RX_Full != prevRX_Full)
+	{
+		if (RX_Full)
+		{
+			USARTn.TXDATAL = 'f';
+		} 
+		else
+		{
+			USARTn.TXDATAL = 'a';
+		}
+		
+		prevRX_Full = RX_Full;
+	} else {
+	    uint8_t tail = tx_tail + 1;
+	 
+	    if (tx_tail == TX_BUFFERSIZE)
+		{
+			tail = 0;
+	    }
+		
+		USARTn.TXDATAL = tx_buffer_data[tail];
+		tx_tail = tail;
+	}
+}
+
+ReturnCodes TX_available(){
+	
+	if (RX_Full != prevRX_Full)
+	{
+		return BUFFER_AVAILABLE;
+	}
+	
+	if (tx_head == tx_tail)
+	{
+		return BUFFER_EMPTY;
+	}
+	
+	uint8_t head = tx_head + 1;
+	if (head == TX_BUFFERSIZE)
+	{
+		head = 0;
+	}
+	
+	if (head == tx_tail)
+	{
+		return BUFFER_FULL;
+	}
+	return BUFFER_AVAILABLE;
+}
+
+void RTX_FLUSH(){
+	rx_head = 0;
+	tx_head = 0;
+	rx_tail = 0;
+	tx_tail = 0;
+	USARTn.RXDATAL;
+	USARTn.RXDATAL;
 }

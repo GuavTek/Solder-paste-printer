@@ -52,8 +52,14 @@ ReturnCodes BlockBufferAvailable();
 //Read from block buffer
 gc_block ReadBlockBuffer();
 
+//Reads without incrementing (reads the previous block)
+gc_block PeekBlockBuffer();
+
 //Will parse the stream of characters
 ReturnCodes ParseStream();
+
+//Initialize, or reset, parser state
+void InitParser();
 
 
 #endif /* GPARSE_H_ */

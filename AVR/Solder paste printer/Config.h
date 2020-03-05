@@ -9,6 +9,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#define VERBOSE_FEEDBACK true
 
 //Define clock frequencies
 #define PRESCALE 6
@@ -19,9 +20,11 @@
 //USB com port
 #define USARTn USART3
 
-#define BLOCK_BUFFER_SIZE 3
+#define BLOCK_BUFFER_SIZE 8
+#define RX_BUFFERSIZE 128
+#define TX_BUFFERSIZE 64
 
-#define METRIC_STEP_LENGTH 0.254;	//Length of a step in millimeters
+#define METRIC_STEP_LENGTH 0.01495;	//Length of a step in millimeters
 
 //G-code
 #define MAX_G_LINE 0

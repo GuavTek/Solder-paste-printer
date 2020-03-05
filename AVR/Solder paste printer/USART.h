@@ -10,19 +10,23 @@
 #define USART_H_
 
 
-#define RX_BUFFERSIZE 128
-#define TX_BUFFERSIZE 64
+
 
 // initializes a uart port with the chosen baudrate
 void USART_INIT(uint8_t portnum, uint32_t baudrate);
 
-// Handles the received data
-void RX_buffer();
+// Handles the received data buffer
+void RX_write();
 uint8_t RX_read();
+ReturnCodes RX_available();
+uint8_t RX_Count();
 
-// Handles the transmitt data
-void TX_receive(uint8_t data);
-void TX_buffer();
+// Handles the transmitt data buffer
+void TX_write(uint8_t data);
+void TX_read();
+ReturnCodes TX_available();
 
+// Flush all values from RX and TX buffers
+void RTX_FLUSH();
 
 #endif /* USART_H_ */

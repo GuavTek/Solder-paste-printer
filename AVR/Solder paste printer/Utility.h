@@ -16,7 +16,9 @@ typedef enum {
 	NOT_RECOGNIZED,
 	BUFFER_FULL,
 	BUFFER_AVAILABLE,
-	BUFFER_EMPTY
+	BUFFER_EMPTY,
+	BUFFER_OVERFLOW,
+	SHORT_WORD
 } ReturnCodes;
 
 typedef struct {
