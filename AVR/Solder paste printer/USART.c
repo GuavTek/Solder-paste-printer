@@ -6,9 +6,8 @@
  */ 
 
 
-#include <stdint.h>
-#include <avr/io.h>
 
+#include "Header.h"
 
 
 volatile uint8_t rx_head = 0;
@@ -106,15 +105,15 @@ void RX_write()
     
     rx_data = USARTn.RXDATAL;
     
-    switch (data);
+    switch (rx_data)
     {
         case CMD_RESET:     /*insert reset routine break*/ break;
         case CMD_STATUS_REPORT: /* insert status report routine*/ break; // Set as true
         case CMD_CYCLE_START:   /* insert system exucuiton status*/ break; // Set as true
         default:
-            if(data > 0x7F)
+            if(rx_data > 0x7F)
             {
-                switch(data); // pick up realtime commands
+                switch(rx_data); // pick up realtime commands
                 {
                     
                 }

@@ -1,1 +1,9 @@
 Solder paste dispenser.code-workspace
+*.d
+*.o
+*.elf
+*.srec
+*.map
+*.lss
+*.hex
+*.atsuo

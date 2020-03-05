@@ -34,5 +34,8 @@
 #define CMD_X_SIZE 8
 #define CMD_Y_SIZE 8
 #define CMD_Z_SIZE 4
+#define CMD_RESET '@'
+#define CMD_STATUS_REPORT '€'
+#define CMD_CYCLE_START '¤'
 
 #endif /* CONFIG_H_ */
