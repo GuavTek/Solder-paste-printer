@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <avr/io.h>
-#include "Header.h"
+
 
 
 volatile uint8_t rx_head = 0;
@@ -106,29 +106,46 @@ void RX_write()
     
     rx_data = USARTn.RXDATAL;
     
-    //real-time commands should be picked out here
-    
-    
-    head = rx_head + 1;
-    
-    if(rx_head == RX_BUFFERSIZE)
+    switch (data);
     {
-        head = 0;
-    }
+        case CMD_RESET:     /*insert reset routine break*/ break;
+        case CMD_STATUS_REPORT: /* insert status report routine*/ break; // Set as true
+        case CMD_CYCLE_START:   /* insert system exucuiton status*/ break; // Set as true
+        default:
+            if(data > 0x7F)
+            {
+                switch(data); // pick up realtime commands
+                {
+                    
+                }
+            }
+            else // data that does not contain realtime or system commands
+            {
+                
+                head = rx_head + 1;
     
-    if(head != rx_tail)
-    {
-        rx_buffer_data[head] = rx_data;
-        rx_head = head;
-    } else {
-		ReportStatus(BUFFER_OVERFLOW, 'R');
-	}
+                if(rx_head == RX_BUFFERSIZE)
+                {
+                    head = 0;
+                }
+    
+                if(head != rx_tail)
+    			{
+        			rx_buffer_data[head] = rx_data;
+        			rx_head = head;
+    			} else {
+					ReportStatus(BUFFER_OVERFLOW, 'R');
+				}
 	
-	// Signal that buffer is full (soon)
-	if (RX_Count() < 10)
-	{
-		RX_Full = true;
-	}
+				// Signal that buffer is full (soon)
+				if (RX_Count() < 10)
+				{
+					RX_Full = true;
+				}
+            }
+    }
+
+    
 }
 
 // Returns available buffer space
