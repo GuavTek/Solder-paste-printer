@@ -6,4 +6,4 @@ Solder paste dispenser.code-workspace
 *.map
 *.lss
 *.hex
-*.atsuo
+.atsuo
