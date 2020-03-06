@@ -96,8 +96,8 @@ typedef struct
 
 typedef struct
 {
-    volatile uint32_t   full = 0;
-    volatile uint8_t    micro = 0;
+    volatile uint32_t   full;
+    volatile uint8_t    micro;
     
 }count;
 
@@ -110,9 +110,9 @@ typedef struct
 
 typedef struct
 {
-    uint8_t ready = 0,
+    uint8_t ready,
             ret,
-            line = 7;
+            line;
 }st_flag;
 
 typedef struct
@@ -122,5 +122,5 @@ typedef struct
     st_count    counter;
     st_flag     stepflag;
     st_dir      direction;
-    enum StepperPres s_velosity;
+    enum stepper_pres s_velosity;
 }st_block;
