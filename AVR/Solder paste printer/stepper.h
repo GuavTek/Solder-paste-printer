@@ -20,16 +20,34 @@ extern "C" {
 #endif	/* STEPPER_H */
 
 
-/*Stepper Flags */
-#define X_STEP_EXE      0
-#define Y_STEP_EXE      1
-#define Z_STEP_EXE      2
-#define X_STEP_READY    3
-#define Y_STEP_READY    4
-#define Z_STEP_READY    5
+/*Step ready flags */
+#define X_MSTEP_READY    0
+#define Y_MSTEP_READY    1
+#define Z_MSTEP_READY    2
+#define X_FSTEP_READY    3
+#define Y_FSTEP_READY    4
+#define Z_FSTEP_READY    5
+
+/*Step line flags */
+#define X_LINE_READY    0
+#define Y_LINE_READY    1
+#define Z_LINE_READY    2
+#define X_LINE_EXE      3
+#define Y_LINE_EXE      4
+#define Z_LINE_EXE      5
+#define X_LINE_RET      6
+#define Y_LINE_RET      7
+
+#define X_MSTEP_RET    0
+#define Y_MSTEP_RET    1
+#define Z_MSTEP_RET    2
+#define X_FSTEP_RET    3
+#define Y_FSTEP_RET    4
+#define Z_FSTEP_RET    5
 
 
-enum MoveSpeed 
+
+enum stepper_pres 
 {
     full_step,
     half_step,
@@ -46,38 +64,63 @@ enum DirSet
 
 typedef struct
 {
-    uint32_t    x,
-                y,
-                z; 
-}s_vector;
-
+    enum DirSet full,
+                micro;
+}dir;
 
 typedef struct
 {
-    int32_t     x,
-                y,
-                z;
-   
-}temp_pos;
-
-
-typedef struct
-{
-    volatile uint32_t   x_c = 0,
-                        y_c = 0,
-                        z_c = 0;
-}step_counter;
-
+    dir     x,
+            y,
+            z;
+         
+}st_dir;    
 
 typedef struct
 {
-    s_vector        s_pos; 
-    temp_pos        s_delta;
-    step_counter    s_count;
-    uint8_t         stepper_flag = 7;
-    enum DirSet     x_direction,
-                    y_direction,
-                    z_direction;
+    uint32_t full,
+             full_ret;
     
-    enum MoveSpeed s_velosity;
+    uint8_t micro,
+            micro_ret;
+    
+}st_step;
+
+typedef struct
+{
+    st_step x,
+            y,
+            z; 
+     
+}st_vector;
+
+typedef struct
+{
+    volatile uint32_t   full = 0;
+    volatile uint8_t    micro = 0;
+    
+}count;
+
+typedef struct
+{
+    count   x,
+            y,
+            z;
+}st_count;
+
+typedef struct
+{
+    uint8_t ready = 0,
+            ret,
+            line = 7;
+}st_flag;
+
+typedef struct
+{
+    st_vector   step;
+    StepVector3 last_pos;
+    st_count    counter;
+    st_flag     stepflag;
+    st_dir      direction;
+    enum StepperPres s_velosity;
 }st_block;
