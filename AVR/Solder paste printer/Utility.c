@@ -62,7 +62,7 @@ uint8_t StringLength(const char strng[], uint8_t startIndex){
 StepCount Metric2Step(float millimeters){
 	StepCount newStep;
 	float tempLength = millimeters / METRIC_STEP_LENGTH;
-	newStep.full = floor(tempLength);
+	newStep.full = round(tempLength);
 	tempLength -= newStep.full;
 	newStep.micro = round(tempLength * 16);
 	return newStep;

@@ -19,5 +19,6 @@
 #include "GParse.h"
 #include "stepper.h"
 #include "USART.h"
+#include "Feedback.h"
 
 #endif /* HEADER_H_ */

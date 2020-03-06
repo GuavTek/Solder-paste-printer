@@ -17,17 +17,20 @@ bool WordEnd(char in);
 void WriteBlockBuffer(gc_block block);
 
 //Will parse and insert command-values in gc-block
-ReturnCodes ParseWord(const char wrd[], gc_block *block);
+ReturnCodes ParseWord();
 
 uint8_t blockBufferHead = 0;
 uint8_t blockBufferTail = 0;
-
 gc_block blockBuffer[BLOCK_BUFFER_SIZE];
 
+uint8_t colons;	//For ignoring comments
+
+gc_block currentBlock;
+uint8_t wordIndex = 0;
+bool freshBlock = true;				// True if currentblock contains no new info
+char currentWord[MAX_WORD_SIZE];
+
 ReturnCodes ParseStream(){
-	static gc_block currentBlock;
-	static char currentWord[MAX_WORD_SIZE];
-	static uint8_t wordIndex = 0;
 	static bool readyBlock = false;
 	
 	//Skips if current block hasn't been placed in buffer yet
@@ -40,7 +43,7 @@ ReturnCodes ParseStream(){
 		} 
 		else
 		{
-			ReportStatus(BUFFER_AVAILABLE);
+			//ReportStatus(BUFFER_AVAILABLE);
 			WriteBlockBuffer(currentBlock);
 			readyBlock = false;
 		}
@@ -48,6 +51,7 @@ ReturnCodes ParseStream(){
 	}
 	
 	//Load next character from buffer
+	//Check if there is data
 	char nextChar = RX_read();
 	//char nextChar = USARTn.RXDATAL;
 	
@@ -57,73 +61,88 @@ ReturnCodes ParseStream(){
 	}
 	
 	//Detect line end
-	if ((nextChar == '\r' || nextChar == '\n') && wordIndex > 0){
-		//Erase the unused part of the word buffer
-		for (uint8_t i = wordIndex; i < MAX_WORD_SIZE; i++){
-			currentWord[i] = 0;
-		}
+	if ((nextChar == '\r' || nextChar == '\n')){
 		
-		ParseWord(currentWord,&currentBlock);
+		if(ParseWord() == NONE){
+			freshBlock = false;
+		}
 		wordIndex = 0;	
-		
-		//Push the block into buffer unless it is full
-		readyBlock = true;
-		if(BlockBufferAvailable() == BUFFER_FULL){
-			ReportStatus(BUFFER_FULL);
-			return BUFFER_FULL;
-		} else {
-			WriteBlockBuffer(currentBlock);
-			readyBlock = false;
+		if(freshBlock == false){
+			colons = 0;
+			freshBlock = true;
+			
+			//Push the block into buffer unless it is full
+			readyBlock = true;
+			if(BlockBufferAvailable() == BUFFER_FULL){
+				ReportStatus(BUFFER_FULL, 'B');
+				return BUFFER_FULL;
+			} else {
+				WriteBlockBuffer(currentBlock);
+				readyBlock = false;
+			}
+			ReportStatus(NEW_BLOCK, 0);
+			return NEW_BLOCK;
 		}
-
-		return NEW_BLOCK;
 	}
 	
-	//The two first chars should always be included
-	if(wordIndex < 2){
-		currentWord[wordIndex] = nextChar;
-		wordIndex++;
-	}
-	else
+	//Detect word overflow
+	if (wordIndex >= (MAX_WORD_SIZE - 1))
 	{
-		//Checks if a new word has started
-		if (WordEnd(nextChar)){
-
-			//Erase the unused part of the word buffer
-			for (uint8_t i = wordIndex; i < MAX_WORD_SIZE; i++){
-				currentWord[i] = 0;
-			}
-			ParseWord(currentWord,&currentBlock);
-			wordIndex = 0;
-		}
-		currentWord[wordIndex] = nextChar;
-		wordIndex++;
+		ReportStatus(BUFFER_OVERFLOW, 'W');
 	}
+	
+	//Checks if a new word has started
+	if (WordEnd(nextChar)){
+		if(ParseWord() == NONE){
+			freshBlock = false;
+		}
+		wordIndex = 0;
+	}
+	
+	currentWord[wordIndex] = nextChar;
+	wordIndex++;
+
 	return NONE;
 }
 
-ReturnCodes ParseWord(const char wrd[], gc_block *block){
-	char letter = wrd[0];
+ReturnCodes ParseWord(){
+	char letter = currentWord[0];
 	int num = 0;
 	uint8_t fraction = 0;
 	uint8_t precision = 0;
 	static int parameter = 0;
 	
+	//Return if word is too short
+	if (wordIndex < 2)
+	{
+		if (wordIndex > 0)
+		{
+			ReportStatus(SHORT_WORD, currentWord[0]);
+		}
+		return SHORT_WORD;
+	}
+	
+	//Erase the unused part of the word buffer
+	for (uint8_t i = wordIndex; i < MAX_WORD_SIZE; i++){
+		currentWord[i] = 0;
+	}
+	
+	
 	//Scan the string to see if it is a float
-	uint8_t dotPos = ScanWord(wrd, 1, '.');
+	uint8_t dotPos = ScanWord(currentWord, 1, '.');
 	
 	//If float, convert fraction separately
 	if (dotPos)
 	{
 		char tempSlice[MAX_WORD_SIZE];
-		Slice(wrd, tempSlice, 1, dotPos - 1);
+		Slice(currentWord, tempSlice, 1, dotPos - 1);
 		num = atoi(tempSlice);
-		precision = StringLength(wrd, dotPos + 1);
-		Slice(wrd, tempSlice, dotPos + 1, dotPos + precision);
+		precision = StringLength(currentWord, dotPos + 1);
+		Slice(currentWord, tempSlice, dotPos + 1, dotPos + precision);
 		fraction = atoi(tempSlice);
 		
 	} else {
-		num = atoi(wrd + 1);
+		num = atoi(currentWord + 1);
 	}
 	
 	//Detect if it is real-time command
@@ -136,51 +155,51 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 				
 			case 'F': {
 				//Feedrate
-				block->moveSpeed = num;
+				currentBlock.moveSpeed = num;
 				break;
 			}
 			case 'G':{
 				//Prep commands
 				switch(num){
 					case 0: {
-						block->motion = Rapid_position;
+						currentBlock.motion = Rapid_position;
 						break;
 					}
 					case 1: {
-						block->motion = Linear_interpolation;
+						currentBlock.motion = Linear_interpolation;
 						break;
 					}
 					case 2: {
-						block->motion = Arc_CW;
+						currentBlock.motion = Arc_CW;
 						break;
 					}
 					case 3: {
-						block->motion = Arc_CCW;
+						currentBlock.motion = Arc_CCW;
 						break;
 					}
 					case 4: {
-						block->motion = Dwell;
-						block->dwellTime = parameter;
+						currentBlock.motion = Dwell;
+						currentBlock.dwellTime = parameter;
 						break;
 					}
 					case 20: {
-						block->coordinateUnit = Inch;
+						currentBlock.coordinateUnit = Inch;
 						break;
 					}
 					case 21: {
-						block->coordinateMode = millimeter;
+						currentBlock.coordinateMode = millimeter;
 						break;
 					}
 					case 28: {
-						block->motion = Home;
+						currentBlock.motion = Home;
 						break;
 					}
 					case 90: {
-						block->coordinateMode = absolute;
+						currentBlock.coordinateMode = absolute;
 						break;
 					}
 					case 91: {
-						block->coordinateMode = incremental;
+						currentBlock.coordinateMode = incremental;
 						break;
 					}
 				}
@@ -189,17 +208,17 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 			
 			case 'I':{
 				//Arc center X
-				block->arcCentre.x = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.arcCentre.x = Metric2Step(num + (fraction / pow(10, precision)));
 				break;	
 			}
 			case 'J':{
 				//Arc center Y
-				block->arcCentre.y = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.arcCentre.y = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			case 'K':{
 				//Arc center Z
-				block->arcCentre.z = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.arcCentre.z = Metric2Step(num + (fraction / pow(10, precision)));
 				break;	
 			}
 			case 'M':{
@@ -207,33 +226,30 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 				switch(num){
 					case 0: {
 						//Compulsory stop
-						ReportStatus(STOP_DETECTED);
-						return STOP_DETECTED;
+						ReportStatus(STOP_DETECTED, 0);
+						
 					}
 					case 1: {
 						//Optional stop
-						ReportStatus(STOP_DETECTED);
-						return STOP_DETECTED;
+						ReportStatus(STOP_DETECTED, 0);
 					}
 					case 2: {
 						//End of program
-						ReportStatus(STOP_DETECTED);
-						return STOP_DETECTED;
+						ReportStatus(STOP_DETECTED, 0);
 					}
 					case 3: case 4: {
 						//Spindle (dispenser) on
-						block->dispenseEnable = true;
+						currentBlock.dispenseEnable = true;
 						break;
 					}
 					case 5: {
 						//Spindle (dispenser) off
-						block->dispenseEnable = false;
+						currentBlock.dispenseEnable = false;
 						break;
 					}
 					case 30: {
 						//End of program, return to program top
-						ReportStatus(STOP_DETECTED);
-						return STOP_DETECTED;
+						ReportStatus(STOP_DETECTED, 0);
 					}
 				}
 				break;
@@ -255,27 +271,27 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 			}
 			case 'R':{
 				//Arc radius
-				block->arcRadius = 0; //Not implemented
+				currentBlock.arcRadius = 0; //Not implemented
 				break;
 			}
 			case 'S':{
 				//Spindle speed
-				block->dispenseRate = num;
+				currentBlock.dispenseRate = num;
 				break;
 			}
 			case 'X':{
 				//Position X
-				block->pos.x = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.pos.x = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			case 'Y':{
 				//Position Y
-				block->pos.y = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.pos.y = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			case 'Z':{
 				//Position Z
-				block->pos.z = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.pos.z = Metric2Step(num + (fraction / pow(10, precision)));
 				break;
 			}
 			default:{
@@ -287,14 +303,57 @@ ReturnCodes ParseWord(const char wrd[], gc_block *block){
 	return NONE;
 }
 
+void InitParser(){
+	//Reset buffer indexes
+	wordIndex = 0;
+	blockBufferHead = 0;
+	blockBufferTail = 0;
+	
+	//Set default block values
+	currentBlock.pos.x.full = 0;
+	currentBlock.pos.x.micro = 0;
+	currentBlock.pos.y.full = 0;
+	currentBlock.pos.y.micro = 0;
+	currentBlock.pos.z.full = 0;
+	currentBlock.pos.z.micro = 0;
+	currentBlock.motion = Home;
+	currentBlock.dispenseRate = 0;
+	currentBlock.moveSpeed = 0;
+	currentBlock.dispenseEnable = false;
+	currentBlock.dwellTime = 0;
+	currentBlock.coordinateMode = absolute;
+	currentBlock.coordinateUnit = millimeter;
+	
+	WriteBlockBuffer(currentBlock);
+}
+
 bool IgnoreChar(char in){
+	
 	if (in == ' ')
+	{
+		return true;
+	} else if (in == 0)
 	{
 		return true;
 	} else if (in == '+')
 	{
 		return true;
 	} else if (in == '%')
+	{
+		return true;
+	} else if (in == '/')
+	{
+		return true;
+	} else if ((in == '(') || (in == ';'))
+	{
+		colons++;
+	} else if (in == ')')
+	{
+		colons--;
+	}
+	
+	//Ignore comments
+	if (colons > 0)
 	{
 		return true;
 	}
@@ -320,17 +379,17 @@ ReturnCodes BlockBufferAvailable(){
 		return BUFFER_EMPTY;
 	}
 	
-	uint8_t tempTail = blockBufferTail - 1;
-	if (tempTail >= BLOCK_BUFFER_SIZE)
+	uint8_t tempHead = blockBufferHead + 1;
+	if (tempHead >= BLOCK_BUFFER_SIZE)
 	{
-		tempTail = (BLOCK_BUFFER_SIZE - 1);
+		tempHead = 0;
 	}
 	
-	if (blockBufferHead == tempTail)
+	if (blockBufferTail == tempHead)
 	{
 		return BUFFER_FULL;
 	}
-	return NONE;
+	return BUFFER_AVAILABLE;
 }
 
 void WriteBlockBuffer(gc_block block){
@@ -351,5 +410,9 @@ gc_block ReadBlockBuffer(){
 		blockBufferTail = 0;
 	}
 	
+	return blockBuffer[blockBufferTail];
+}
+
+gc_block PeekBlockBuffer(){
 	return blockBuffer[blockBufferTail];
 }

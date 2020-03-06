@@ -10,9 +10,6 @@
 #define FEEDBACK_H_
 
 //Sends error statuses to pc
-void ReportStatus(ReturnCodes code);
-
-//Sends error statuses to pc
 void ReportStatus(ReturnCodes code, int num);
 
 
