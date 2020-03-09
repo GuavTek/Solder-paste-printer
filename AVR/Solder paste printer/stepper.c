@@ -11,6 +11,9 @@
 
 st_block st;
 
+st.stepflag.line = 0;
+st.stepflag.ready = 0;
+
 void stepper_TCB_init()
 {
     //enable TCB0
