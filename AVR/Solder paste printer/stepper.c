@@ -7,37 +7,9 @@
 
 #include "Header.h"
 
+
+
 st_block st;
-
-/*Stepper flags is set to seven by default, this because the first
- if statement in the getline function*/
-
-void prescale_select(uint8_t sel)
-{
-    switch (sel)
-    {
-        case 1:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV2_gc;
-            break;
-        case 2:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV4_gc;
-            break;
-        case 3:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV8_gc;
-            break;
-        case 4:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV16_gc;
-            break;
-        case 5:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc;
-            break;
-        case 6: 
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV256_gc;   
-        default:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV1024_gc;
-    }   
-}
-
 
 void stepper_TCB_init()
 {
@@ -63,6 +35,33 @@ void stepper_TCB_init()
     TCA0.SPLIT.CTRLD = (1 << 0);
 }
 
+void prescale_select(uint8_t sel)
+{
+    switch (sel)
+    {
+        case 1:
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV2_gc;
+            break;
+        case 2:
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV4_gc;
+            break;
+        case 3:
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV8_gc;
+            break;
+        case 4:
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV16_gc;
+            break;
+        case 5:
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc;
+            break;
+        case 6: 
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV256_gc;   
+        default:
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV1024_gc;
+    }
+    
+    TCA0.SPLIT.CTRLA |= TCA_SPLIT_ENABLE_bm;
+}
 
 
 void PrepStep(void)
