@@ -65,9 +65,9 @@ void stepper_TCB_init()
 
 
 
-void PrepStep()
+void PrepStep(void)
 {
-    st_block *st
+    st_block *st;
     gc_block GetLine, *pp;
     StepVector3 delta;
     uint8_t prescale;
