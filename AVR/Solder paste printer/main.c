@@ -14,51 +14,41 @@ void InitEndSensors();
 
 void Blinky(void);
 
-uint16_t timer = 0;
+uint16_t timer = 1000;
 
 int main(void)
 {
 	USART_INIT(3, 9600);
     stepper_TCB_init();
-	USARTn.TXDATAL = 'o';
 	InitEndSensors();
 	InitClock();
-	//Set clk_per prescaler not working?
-//	CLKCTRL.MCLKCTRLB = (PDIV << 1)|(1 << 0);
-	PORTF.DIRSET = 1 << 5;	//Onboard LED
-	PORTF.OUTSET = PIN5_bm;
-	
+	PORTF.DIRSET = PIN5_bm;	//Onboard LED
 	sei();
 	Blinky();
-	
-    
+	USARTn.TXDATAL = 'o';
+	currentState.state = idle;
+    currentState.running = true;
     while (1) 
     {
+		//Wait for start-character
 		if(RX_available() != BUFFER_EMPTY){
 			PORTF.OUTTGL = PIN5_bm;
-			char tempChar = RX_read();
-			if (tempChar == '%')
+			if (RX_read() == START_CHAR)
 			{
 				Print();
+				timer = 1000;
+				currentState.state = idle;
 			}
 		}
-
 		
+		TX_Jumpstart();
 
-		
-		/*
-		timer++;
-		if (timer == 0)
-		{
-			PORTF.OUTTGL = PIN5_bm;
-		}
-		*/
     }
 }
 
 void Blinky(){
 	PORTF.OUTTGL = PIN5_bm;
-	StartTimer(1000, Blinky);
+	StartTimer(timer, Blinky);
 }
 
 
@@ -66,28 +56,36 @@ void Blinky(){
 void Print(void) {
 	InitParser();
 	TX_write('k');
-	
+	currentState.state = printing;
+	currentState.abortPrint = false;
+	timer = 200;
 	PORTF.OUTSET = PIN5_bm;
 	
 	while(1){
-		ParseStream();
-		PrepStep();
-		//Jumpstart TX if there is data and is not currently sending
-		if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_TXCIE_bm))
+		if (currentState.running)
 		{
-			PORTF.OUTCLR = PIN5_bm;
-			TX_read();
-			USARTn.CTRLA |= USART_TXCIE_bm;
+			ParseStream();
+			PrepStep();
+		} 
+		else
+		{
+			//Error state
+			
 		}
 		
-		PORTF.OUTSET = PIN5_bm;
-		/*
-		if(ABORT){
-			flushRX;
-			return;
+		TX_Jumpstart();
+		
+		
+		if(currentState.abortPrint){
+			break;
 		}
-		*/
+		
 	}
+	
+	//Stops printing and returns to idle mode
+	currentState.running = true;
+	RTX_FLUSH();
+	return;
 }
 
 void InitEndSensors(){
@@ -119,7 +117,13 @@ ISR(PORTC_PORT_vect){
 		//Y-axis end detected
 		//Stop Y motion
 		//Step 1 position back/or until level goes back
-		//Log unexpected trigger if current task != home
+		
+		//Log unexpected end trigger, and halt printing
+		if (currentState.task != Home)
+		{
+			currentState.running = false;
+			ReportStatus(UNEXPECTED_EDGE, 'Y');
+		}
 		PORTC.INTFLAGS |= PIN5_bm;
 	}
 }
@@ -129,12 +133,24 @@ ISR(PORTD_PORT_vect){
 	{
 		//X-axis end detected
 		
+		//Log unexpected end trigger, and halt printing
+		if (currentState.task != Home)
+		{
+			currentState.running = false;
+			ReportStatus(UNEXPECTED_EDGE, 'X');
+		}
 		PORTD.INTFLAGS |= PIN2_bm;
 	}
 	if (PORTD.INTFLAGS & PIN5_bm)
 	{
 		//Z-axis end detected
 		
+		//Log unexpected end trigger, and halt printing
+		if (currentState.task != Home)
+		{
+			currentState.running = false;
+			ReportStatus(UNEXPECTED_EDGE, 'Z');
+		}
 		PORTD.INTFLAGS |= PIN5_bm;
 	}
 	if (PORTD.INTFLAGS & PIN1_bm)

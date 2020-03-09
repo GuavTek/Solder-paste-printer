@@ -29,13 +29,15 @@
 //G-code
 #define MAX_G_LINE 0
 #define MAX_LINE_SIZE 256
-#define STOP_CHAR "\r"
 #define MAX_WORD_SIZE 16
 #define CMD_X_SIZE 8
 #define CMD_Y_SIZE 8
 #define CMD_Z_SIZE 4
+
+#define START_CHAR '%'
 #define CMD_RESET '@'
-#define CMD_STATUS_REPORT '€'
-#define CMD_CYCLE_START '¤'
+#define CMD_STATUS_REPORT '?'
+#define CMD_CYCLE_START '~'
+#define CMD_ABORT 0x18
 
 #endif /* CONFIG_H_ */

@@ -74,13 +74,13 @@ ReturnCodes ParseStream(){
 			//Push the block into buffer unless it is full
 			readyBlock = true;
 			if(BlockBufferAvailable() == BUFFER_FULL){
-				ReportStatus(BUFFER_FULL, 'B');
+				ReportEvent(BUFFER_FULL, 'B');
 				return BUFFER_FULL;
 			} else {
 				WriteBlockBuffer(currentBlock);
 				readyBlock = false;
 			}
-			ReportStatus(NEW_BLOCK, 0);
+			ReportEvent(NEW_BLOCK, 0);
 			return NEW_BLOCK;
 		}
 	}
@@ -88,7 +88,7 @@ ReturnCodes ParseStream(){
 	//Detect word overflow
 	if (wordIndex >= (MAX_WORD_SIZE - 1))
 	{
-		ReportStatus(BUFFER_OVERFLOW, 'W');
+		ReportEvent(BUFFER_OVERFLOW, 'W');
 	}
 	
 	//Checks if a new word has started
@@ -117,7 +117,7 @@ ReturnCodes ParseWord(){
 	{
 		if (wordIndex > 0)
 		{
-			ReportStatus(SHORT_WORD, currentWord[0]);
+			ReportEvent(SHORT_WORD, currentWord[0]);
 		}
 		return SHORT_WORD;
 	}
@@ -226,16 +226,21 @@ ReturnCodes ParseWord(){
 				switch(num){
 					case 0: {
 						//Compulsory stop
-						ReportStatus(STOP_DETECTED, 0);
-						
+						ReportEvent(STOP_DETECTED, 0);
+						currentBlock.motion = Stop;
+						break;
 					}
 					case 1: {
 						//Optional stop
-						ReportStatus(STOP_DETECTED, 0);
+						ReportEvent(STOP_DETECTED, 0);
+						currentBlock.motion = Stop;
+						break;
 					}
 					case 2: {
 						//End of program
-						ReportStatus(STOP_DETECTED, 0);
+						ReportEvent(STOP_DETECTED, 0);
+						currentBlock.motion = Stop;
+						break;
 					}
 					case 3: case 4: {
 						//Spindle (dispenser) on
@@ -249,7 +254,9 @@ ReturnCodes ParseWord(){
 					}
 					case 30: {
 						//End of program, return to program top
-						ReportStatus(STOP_DETECTED, 0);
+						ReportEvent(STOP_DETECTED, 0);
+						currentBlock.motion = Stop;
+						break;
 					}
 				}
 				break;
@@ -295,7 +302,7 @@ ReturnCodes ParseWord(){
 				break;
 			}
 			default:{
-				ReportStatus(NOT_RECOGNIZED, letter);
+				ReportEvent(NOT_RECOGNIZED, letter);
 				return NOT_RECOGNIZED; //Unrecognized command
 			}
 		}

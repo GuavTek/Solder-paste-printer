@@ -15,6 +15,7 @@
 #include <avr/interrupt.h>
 #include <stdbool.h>
 #include <math.h>
+#include <avr/cpufunc.h>
 #include "Utility.h"
 #include "Config.h"
 #include "GParse.h"

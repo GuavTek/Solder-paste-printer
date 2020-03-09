@@ -7,6 +7,8 @@
 
 #include "Header.h"
 
+PrinterState currentState;
+
 //The function the RTC calls when triggered
 //Is set by StartDwell
 void (*RTC_Callback)(void);
