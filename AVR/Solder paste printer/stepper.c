@@ -11,7 +11,7 @@
 
 st_block st;
 
-st.stepflag.line = 0;
+st.stepflag.line = 56;
 st.stepflag.ready = 0;
 
 void stepper_TCB_init()
