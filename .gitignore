@@ -12,3 +12,5 @@ Makefile
 makedep.mk
 *.eep
 .DS_Store
+/AVR/Solder paste printer/build/
+.DS_Store
