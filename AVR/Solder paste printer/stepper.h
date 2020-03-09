@@ -21,7 +21,7 @@ extern "C" {
 
 void PrepStep(void);
 void stepper_TCB_init();
-void prescale_select(uint8_t, sel);
+void prescale_select(uint8_t sel);
 
 /*Step ready flags */
 #define X_MSTEP_READY    0
