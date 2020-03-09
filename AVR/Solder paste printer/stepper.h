@@ -110,9 +110,8 @@ typedef struct
 
 typedef struct
 {
-    uint8_t ready,
-            ret,
-            line;
+    uint8_t ready = 0,
+            line = 0;
 }st_flag;
 
 typedef struct

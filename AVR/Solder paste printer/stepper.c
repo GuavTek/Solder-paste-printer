@@ -274,7 +274,7 @@ ISR(TIMER0_COMPB_vect) //TCB0 vector
         TCB0.INTCTRL &= ~TCB_CAPT_bm; 
     }
     
-    TCB0.INTFLAGS = TCB_CAPT_bm;// clear interrupt flag
+    TCB0.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
 }
 
 ISR(TIMER1_COMPB_vect) //TCB1 vector
@@ -325,7 +325,7 @@ ISR(TIMER1_COMPB_vect) //TCB1 vector
         TCB1.INTCTRL &= ~TCB_CAPT_bm; 
     }
     
-    TCB1.INTFLAGS = TCB_CAPT_bm;// clear interrupt flag
+    TCB1.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
 }
 
 
