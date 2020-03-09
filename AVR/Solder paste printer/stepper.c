@@ -67,38 +67,34 @@ void stepper_TCB_init()
 
 void PrepStep(void)
 {
-    st_block *st;
-    gc_block GetLine, *pp;
+    gc_block GetLine;
     StepVector3 delta;
     uint8_t prescale;
     uint8_t buffer_state = BlockBufferAvailable();
     
-    st = &st_block;
-    pp = &GetLine;
-    
-    if ((buffer_state != BUFFER_EMPTY) && (st->stepflag.line == 0));
+    if ((buffer_state != BUFFER_EMPTY) && (st.stepflag.line == 0));
     {
         GetLine = ReadBlockBuffer();
         
-        switch(pp->coordinateMode)
+        switch(GetLine.coordinateMode)
         {
             case(absolute):
-                delta.x.full = pp->pos.x.full - st->last_pos.x.full;
-                delta.y.full = pp->pos.y.full - st->last_pos.y.full;
-                delta.z.full = pp->pos.z.full - st->last_pos.z.full;
-                delta.x.micro = pp->pos.x.micro;
-                delta.y.micro = pp->pos.y.micro;
-                delta.z.micro = pp->pos.z.micro;
-                st->last_pos.x.full = pp->pos.x.full;
-                st->last_pos.y.full = pp->pos.y.full;
-                st->last_pos.z.full = pp->pos.z.full;
+                delta.x.full = GetLine.pos.x.full - st.last_pos.x.full;
+                delta.y.full = GetLine.pos.y.full - st.last_pos.y.full;
+                delta.z.full = GetLine.pos.z.full - st.last_pos.z.full;
+                delta.x.micro = GetLine.pos.x.micro;
+                delta.y.micro = GetLine.pos.y.micro;
+                delta.z.micro = GetLine.pos.z.micro;
+                st.last_pos.x.full = GetLine.pos.x.full;
+                st.last_pos.y.full = GetLine.pos.y.full;
+                st.last_pos.z.full = GetLine.pos.z.full;
                 break;
                 
             case(incremental):
-                delta = pp->pos;
+                delta = GetLine.pos;
                 /*Incremental value gets added, 
                   to keep track on absolute position*/
-                st->last_pos += delta;
+                /*st->last_pos += delta;*/
                 break;
         }
         
@@ -106,42 +102,42 @@ void PrepStep(void)
         {
             if(delta.x.full > 0)
             {    
-                st->direction.x.full = pos_dir;
+                st.direction.x.full = pos_dir;
             }
             else
             {
-                st->direction.x.full = neg_dir;     
+                st.direction.x.full = neg_dir;     
             }
-            st->step.x.full = abs(delta.x.full);
-            st->counter.x.full = 0;
-            st->stepflag.ready |= (1 << X_FSTEP_READY); 
+            st.step.x.full = abs(delta.x.full);
+            st.counter.x.full = 0;
+            st.stepflag.ready |= (1 << X_FSTEP_READY); 
         }
 
         if(delta.x.micro != 0)
         {
             if(delta.x.micro > 0)
             {
-                st->direction.x.micro = pos_dir;
+                st.direction.x.micro = pos_dir;
             }
             else
             {
-                st->direction.x.micro = neg_dir;
+                st.direction.x.micro = neg_dir;
             }
             
-            st->step.x.micro = abs(delta.x.micro);
-            st->counter.x.micro = 0;
-            st->stepflag.ready |= (1 << X_MSTEP_READY);
+            st.step.x.micro = abs(delta.x.micro);
+            st.counter.x.micro = 0;
+            st.stepflag.ready |= (1 << X_MSTEP_READY);
         }
         
         if(delta.y.full != 0)
         {
             if(delta.y.full > 0)
             {    
-                st->direction.y.full = pos_dir;
+                st.direction.y.full = pos_dir;
             }
             else
             {
-                st->direction.y.full = neg_dir;
+                st.direction.y.full = neg_dir;
             }
             st->step.y.full = abs(delta.y.full);
             st->counter.y.full = 0;
@@ -153,32 +149,32 @@ void PrepStep(void)
         {
             if(delta.y.micro > 0)
             {
-                st->direction.y.micro = pos_dir;
+                st.direction.y.micro = pos_dir;
             }
             else
             {
-                st->direction.y.micro = neg_dir;
+                st.direction.y.micro = neg_dir;
             }
             
-            st->step.y.micro = abs(delta.y.micro);
-            st->counter.y.micro = 0;
-            st->stepflag.ready |= (1 << Y_MSTEP_READY);
+            st.step.y.micro = abs(delta.y.micro);
+            st.counter.y.micro = 0;
+            st.stepflag.ready |= (1 << Y_MSTEP_READY);
         }
                 
         if(delta.z.full != 0)
         {
             if(delta.z.full > 0)
             {    
-                st->direction.z.full = pos_dir;
+                st.direction.z.full = pos_dir;
             }
             else
             {
-                st->direction.z.full = neg_dir;
+                st.direction.z.full = neg_dir;
             }
             
-            st->step.z.full = abs(delta.z.full)
-            st->counter.z.full = 0;
-            st->stepflag.ready |= (1 << Z_FSTEP_READY);
+            st.step.z.full = abs(delta.z.full)
+            st.counter.z.full = 0;
+            st.stepflag.ready |= (1 << Z_FSTEP_READY);
             
         }
         
@@ -186,40 +182,40 @@ void PrepStep(void)
         {
             if(delta.z.micro > 0)
             {
-                st->direction.z.micro = pos_dir;
+                st.direction.z.micro = pos_dir;
             }
             else
             {
-                st->direction.z.micro = neg_dir;
+                st.direction.z.micro = neg_dir;
             }
             
-            st->step.z.micro = abs(delta.y.micro);
-            st->counter.z.micro = 0;
-            st->stepflag.ready |= (1 << Z_MSTEP_READY);
+            st.step.z.micro = abs(delta.y.micro);
+            st.counter.z.micro = 0;
+            st.stepflag.ready |= (1 << Z_MSTEP_READY);
         }
         
-        prescale_select(st->s_velosity);
+        prescale_select(st.s_velosity);
         
-        if(st->stepflag.ready & ((1 << X_FSTEP_READY) | (1 << X_MSTEP_READY)))
+        if(st.stepflag.ready & ((1 << X_FSTEP_READY) | (1 << X_MSTEP_READY)))
         {   
-            st->stepflag.line |= (1 << X_LINE_READY);
-            st->stepflag.line &= ~(1 << X_LINE_EXE);
+            st.stepflag.line |= (1 << X_LINE_READY);
+            st.stepflag.line &= ~(1 << X_LINE_EXE);
             TCB0.CNT = 0;
             TCB0.INTCTRL |= TCB_CAPT_bm; 
         }
         
-        if(st->stepflag.ready & ((1 << Y_FSTEP_READY) | (1 << Y_MSTEP_READY)))
+        if(st.stepflag.ready & ((1 << Y_FSTEP_READY) | (1 << Y_MSTEP_READY)))
         {
-            st->stepflag.line |= (1 << Y_LINE_READY);
-            st->stepflag.line &= ~(1 << Y_LINE_EXE);
+            st.stepflag.line |= (1 << Y_LINE_READY);
+            st.stepflag.line &= ~(1 << Y_LINE_EXE);
             TCB1.CNT = 0;
             TCB1.INTCTRL |= TCB_CAPT_bm; 
         }
         
-        if(st->stepflag.ready & ((1 << Z_FSTEP_READY) | (1 << Z_MSTEP_READY)))
+        if(st.stepflag.ready & ((1 << Z_FSTEP_READY) | (1 << Z_MSTEP_READY)))
         {
-            st->stepflag.line |= (1 << Z_LINE_READY);
-            st->stepflag.line &= ~(1 << Z_LINE_EXE);
+            st.stepflag.line |= (1 << Z_LINE_READY);
+            st.stepflag.line &= ~(1 << Z_LINE_EXE);
             TCB2.CNT = 0;
             TCB2.INTCTRL |= TCB_CAPT_bm;
         }
