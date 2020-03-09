@@ -20,22 +20,22 @@ void stepper_TCB_init()
     //all counter registers set to 50% dutycycle
     TCB0.CTRLA = TCB_ENABLE_bm | TCB_CLKSEL_CLKTCA_gc;
     TCB0.CTRLB = TCB_CNTMODE_PWM8_gc;
-    TCB0.CCMPH = 127;
-    TCB0.CCMPL = 255;
+    TCB0.CTRLB |= TCB_CCMPEN_bm;
+    TCB0.CCMP = 0x80FF;
+    
     
     //enable TCB1
     TCB1.CTRLA = TCB_ENABLE_bm | TCB_CLKSEL_CLKTCA_gc;
     TCB1.CTRLB = TCB_CNTMODE_PWM8_gc;
-    TCB1.CCMPH = 127;
-    TCB1.CCMPL = 255;
+    TCB1.CTRLB |= TCB_CCMPEN_bm;
+    TCB1.CCMP = 0x80FF;
+    
     
     //enable TCB2
     TCB2.CTRLA = TCB_ENABLE_bm | TCB_CLKSEL_CLKTCA_gc;
-    TCB2.CTRLB = TCB_CNTMODE_PWM8_gc; 
-    TCB2.CCMPH = 127;
-    TCB2.CCMPL = 255;
-    
-    TCA0.SPLIT.CTRLD = (1 << 0);
+    TCB2.CTRLB = TCB_CNTMODE_PWM8_gc;
+    TCB2.CTRLB |= TCB_CCMPEN_bm;
+    TCB2.CCMP = 0x80FF;
 }
 
 void prescale_select(uint8_t sel)
@@ -43,27 +43,29 @@ void prescale_select(uint8_t sel)
     switch (sel)
     {
         case 1:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV2_gc;
+            TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV2_gc;
             break;
         case 2:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV4_gc;
+            TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV4_gc;
             break;
         case 3:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV8_gc;
+            TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV8_gc;
             break;
         case 4:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV16_gc;
+            TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV16_gc;
             break;
         case 5:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc;
+            TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV64_gc;
             break;
         case 6: 
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV256_gc;   
+            TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV256_gc;   
         default:
-            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV1024_gc;
+            TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1024_gc;
     }
     
-    TCA0.SPLIT.CTRLA |= TCA_SPLIT_ENABLE_bm;
+    TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;
+    TCA0.SINGLE.PER = 255;
+    
 }
 
 
@@ -227,6 +229,8 @@ void PrepStep(void)
 
 ISR(TIMER0_COMPB_vect) //TCB0 vector
 {   
+    TCB0.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
+    
     if(st.stepflag.line & (1 << X_LINE_READY))
     {
         switch(st.stepflag.ready)
@@ -267,20 +271,20 @@ ISR(TIMER0_COMPB_vect) //TCB0 vector
                 }
                 break;
                 
+            default:
+                
+                st.stepflag.line &= ~(1 << X_LINE_READY);
+                st.stepflag.line = (1 << X_LINE_EXE);
+                TCB0.INTCTRL &= ~TCB_CAPT_bm; 
+                break;
         }
     }
-    
-    else
-    {
-        st.stepflag.line &= ~(1 << X_LINE_EXE);
-        TCB0.INTCTRL &= ~TCB_CAPT_bm; 
-    }
-    
-    TCB0.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
 }
 
 ISR(TIMER1_COMPB_vect) //TCB1 vector
 {
+    TCB1.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
+     
     if(st.stepflag.line & (1 << Y_LINE_READY))
     {
         switch(st.stepflag.ready)
@@ -319,15 +323,15 @@ ISR(TIMER1_COMPB_vect) //TCB1 vector
                     st.counter.y.micro++;
                 }
                 break;
+                
+            default:
+                
+                st.stepflag.line &= ~(1 << Y_LINE_READY);
+                st.stepflag.line = (1 << Y_LINE_EXE);
+                TCB1.INTCTRL &= ~TCB_CAPT_bm; 
+                break;
         }
     }
-    else
-    {
-        st.stepflag.line &= ~(1 << Y_LINE_EXE);
-        TCB1.INTCTRL &= ~TCB_CAPT_bm; 
-    }
-    
-    TCB1.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
 }
 
 
