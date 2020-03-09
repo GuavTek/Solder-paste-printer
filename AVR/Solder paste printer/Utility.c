@@ -5,8 +5,11 @@
  *  Author: mikda
  */ 
 
-#include <stdint.h>
 #include "Header.h"
+
+//The function the RTC calls when triggered
+//Is set by StartDwell
+void (*RTC_Callback)(void);
 
 uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar){
 	for (uint8_t i = startIndex; i < MAX_WORD_SIZE; i++)
@@ -68,3 +71,57 @@ StepCount Metric2Step(float millimeters){
 	return newStep;
 }
 
+void InitClock(){
+	
+	//Enable external clock
+	//CLKCTRL.XOSC32KCTRLA = CLKCTRL_ENABLE_bm;
+	
+	//Wait for registers to synchronize
+	while(RTC.STATUS > 0){}
+	
+	//Use internal crystal
+	RTC.CLKSEL = RTC_CLKSEL_INT1K_gc;
+	
+	
+	RTC.PER = 0xFFFF;
+	RTC.CMP = 0x10;
+	
+	//Enable compare match interrupt
+	//RTC.INTCTRL = RTC_CMP_bm;
+	
+	//Debug enable
+	RTC.DBGCTRL |= RTC_DBGRUN_bm;
+	
+	//Set prescaler and enable RTC
+	RTC.CTRLA = RTC_PRESCALER_DIV1_gc | RTC_RTCEN_bm ;
+
+}
+
+void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
+	//Reset timer
+	//while(RTC.STATUS & RTC_CNTBUSY_bm){}
+	//RTC.CNT = 0;
+	
+	//Convert from milliseconds to periods of 1.024kHz crystal
+	uint32_t tempTime = (waitTime * 24)/1000 + waitTime + RTC.CNT;
+	//Set wait-time
+	while(RTC.STATUS & RTC_CMPBUSY_bm){}
+	RTC.CMP = tempTime;
+	
+	//Set the function to recall
+	RTC_Callback = functionToTrigger;
+	
+	//Enable interrupt
+	RTC.INTCTRL = RTC_CMP_bm;
+}
+
+ISR(RTC_CNT_vect){
+	//Disable interrupt
+	RTC.INTCTRL &= ~RTC_CMP_bm;
+	
+	//Clear interrupt flag
+	RTC.INTFLAGS = RTC_CMP_bm;
+	
+	//Do something
+	RTC_Callback();
+}

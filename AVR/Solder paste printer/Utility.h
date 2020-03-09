@@ -8,7 +8,6 @@
 #ifndef UTILITY_H_
 #define UTILITY_H_
 
-
 typedef enum {
 	NONE,
 	STOP_DETECTED,
@@ -52,5 +51,13 @@ StepCount Metric2Step(float millimeters);
 
 //Imperial not currently supported
 //StepCount UInch2Step(int minches);
+
+//Sets up the clock for StartTimer function
+void InitClock();
+
+//Starts the RTC timer, waittime in millisecond
+//Triggers RTC_CMP interrupt when done
+//Maximum 64 seconds
+void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void));
 
 #endif /* UTILITY_H_ */
