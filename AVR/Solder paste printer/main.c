@@ -43,7 +43,7 @@ int main(void)
 			}
 		}
 
-		PrepStep();
+		
 
 		
 		/*
@@ -71,7 +71,7 @@ void Print(void) {
 	
 	while(1){
 		ParseStream();
-		
+		PrepStep();
 		//Jumpstart TX if there is data and is not currently sending
 		if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_TXCIE_bm))
 		{
