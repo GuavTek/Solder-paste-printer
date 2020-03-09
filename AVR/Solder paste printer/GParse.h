@@ -11,40 +11,6 @@
 
 #include "Utility.h"
 
-//Types of motion
-enum MotionModes {
-	Rapid_position,
-	Linear_interpolation,
-	Arc_CW,
-	Arc_CCW,
-	Dwell,
-	Home
-};
-
-enum CoordUnit {
-	millimeter,
-	Inch
-};
-
-enum CoordMode {
-	absolute,
-	incremental
-};
-
-//Should contain all parameters of a command
-typedef struct {
-	StepVector3 pos;
-	StepVector3 arcCentre;
-	uint32_t arcRadius;
-	enum MotionModes motion;
-	uint8_t dispenseRate;
-	uint8_t moveSpeed;
-	bool dispenseEnable;
-	uint32_t dwellTime;
-	enum CoordMode coordinateMode;
-	enum CoordUnit coordinateUnit;
-} gc_block;
-
 
 //Checks the status of the block buffer
 ReturnCodes BlockBufferAvailable();

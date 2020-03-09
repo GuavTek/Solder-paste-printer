@@ -11,8 +11,7 @@
 
 st_block st;
 
-st.stepflag.line = 56;
-st.stepflag.ready = 0;
+
 
 void stepper_TCB_init()
 {
@@ -36,6 +35,14 @@ void stepper_TCB_init()
     TCB2.CTRLB = TCB_CNTMODE_PWM8_gc;
     TCB2.CTRLB |= TCB_CCMPEN_bm;
     TCB2.CCMP = 0x80FF;
+
+    TCB2.CTRLB = TCB_CNTMODE_PWM8_gc; 
+    TCB2.CCMPH = 127;
+    TCB2.CCMPL = 255;
+    
+    TCA0.SPLIT.CTRLD = (1 << 0);
+	st.stepflag.line = 56;
+	st.stepflag.ready = 0;
 }
 
 void prescale_select(uint8_t sel)

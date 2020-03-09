@@ -10,8 +10,9 @@
 #define FEEDBACK_H_
 
 //Sends error statuses to pc
-void ReportStatus(ReturnCodes code, int num);
+void ReportEvent(ReturnCodes code, int num);
 
-
+//Dumps status of printer to PC
+void ReportStatus();
 
 #endif /* FEEDBACK_H_ */

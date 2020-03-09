@@ -7,18 +7,29 @@
 
 #include "Header.h"
 
-void ReportStatus(ReturnCodes code, int num){
+void ReportEvent(ReturnCodes code, int num){
 	if (TX_available() == BUFFER_FULL)
 	{
 		//Oof
 		return;
 	}
+	
+	if (!currentState.running)
+	{
+		TX_write('!');
+	}
+	
 	switch (code){
 		case NOT_RECOGNIZED: {
 			TX_write('N');
 			TX_write(num);	//Should be letter of G-code, is ASCII
 			break;
 		} 
+		case UNEXPECTED_EDGE: {
+			TX_write('E');
+			TX_write(num);
+			break;
+		}
 		case BUFFER_OVERFLOW: {
 			TX_write('O');
 			TX_write(num);
@@ -55,5 +66,9 @@ void ReportStatus(ReturnCodes code, int num){
 	}
 	TX_write('\n');
 	TX_write('\r');
+	
+}
+
+void ReportStatus(){
 	
 }

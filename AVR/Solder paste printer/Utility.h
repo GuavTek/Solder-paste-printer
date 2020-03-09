@@ -17,8 +17,35 @@ typedef enum {
 	BUFFER_AVAILABLE,
 	BUFFER_EMPTY,
 	BUFFER_OVERFLOW,
-	SHORT_WORD
+	SHORT_WORD,
+	UNEXPECTED_EDGE
 } ReturnCodes;
+
+//Types of motion
+enum MotionModes {
+	Rapid_position,
+	Linear_interpolation,
+	Arc_CW,
+	Arc_CCW,
+	Dwell,
+	Home,
+	Stop
+};
+
+enum CoordUnit {
+	millimeter,
+	Inch
+};
+
+enum CoordMode {
+	absolute,
+	incremental
+};
+
+typedef enum {
+	idle,
+	printing
+} Status;
 
 typedef struct {
 	int full;
@@ -36,6 +63,29 @@ typedef struct  {
 	int y;
 	int z;
 } Vector3;
+
+typedef struct {
+	Status state;
+	enum MotionModes task;
+	bool abortPrint;
+	bool running;
+} PrinterState;
+
+//Should contain all parameters of a command
+typedef struct {
+	StepVector3 pos;
+	StepVector3 arcCentre;
+	uint32_t arcRadius;
+	enum MotionModes motion;
+	uint8_t dispenseRate;
+	uint8_t moveSpeed;
+	bool dispenseEnable;
+	uint32_t dwellTime;
+	enum CoordMode coordinateMode;
+	enum CoordUnit coordinateUnit;
+} gc_block;
+
+extern PrinterState currentState;
 
 //Will find a characters position in the string
 uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar);
@@ -55,7 +105,7 @@ StepCount Metric2Step(float millimeters);
 //Sets up the clock for StartTimer function
 void InitClock();
 
-//Starts the RTC timer, waittime in millisecond
+//Runs a function after waittime, waittime in millisecond
 //Triggers RTC_CMP interrupt when done
 //Maximum 64 seconds
 void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void));

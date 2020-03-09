@@ -107,9 +107,23 @@ void RX_write()
     
     switch (rx_data)
     {
-        case CMD_RESET:     /*insert reset routine break*/ break;
-        case CMD_STATUS_REPORT: /* insert status report routine*/ break; // Set as true
-        case CMD_CYCLE_START:   /* insert system exucuiton status*/ break; // Set as true
+        case CMD_RESET: {
+			//Performs a hard software-reset
+			ccp_write_io((void*)&RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
+			return;
+		}
+        case CMD_STATUS_REPORT: {
+			ReportStatus();
+			return;
+		}
+        case CMD_CYCLE_START: {
+			currentState.running = true;
+			break;
+		}
+		case CMD_ABORT: {
+			currentState.abortPrint = true;
+			return;
+		}
         default:
             if(rx_data > 0x7F)
             {
@@ -133,7 +147,7 @@ void RX_write()
         			rx_buffer_data[head] = rx_data;
         			rx_head = head;
     			} else {
-					ReportStatus(BUFFER_OVERFLOW, 'R');
+					ReportEvent(BUFFER_OVERFLOW, 'R');
 				}
 	
 				// Signal that buffer is full (soon)
@@ -251,4 +265,12 @@ void RTX_FLUSH(){
 	tx_tail = 0;
 	USARTn.RXDATAL;
 	USARTn.RXDATAL;
+}
+
+void TX_Jumpstart(){
+	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_TXCIE_bm))
+	{
+		TX_read();
+		USARTn.CTRLA |= USART_TXCIE_bm;
+	}
 }

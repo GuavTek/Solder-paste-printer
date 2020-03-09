@@ -9,7 +9,7 @@ Solder paste dispenser.code-workspace
 .atsuo
 AVR/Solder paste printer/.vs/Solder paste printer/v14/.atsuo
 Makefile
-makedep.mk
+*.mk
 *.eep
 .DS_Store
 /AVR/Solder paste printer/build/
