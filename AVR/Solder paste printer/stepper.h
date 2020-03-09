@@ -35,8 +35,6 @@ extern "C" {
 #define X_LINE_EXE      3
 #define Y_LINE_EXE      4
 #define Z_LINE_EXE      5
-#define X_LINE_RET      6
-#define Y_LINE_RET      7
 
 #define X_MSTEP_RET    0
 #define Y_MSTEP_RET    1
