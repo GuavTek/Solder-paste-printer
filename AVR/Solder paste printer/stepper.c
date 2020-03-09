@@ -17,24 +17,24 @@ void prescale_select(uint8_t sel)
     switch (sel)
     {
         case 1:
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV2_gc;
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV2_gc;
             break;
         case 2:
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV4_gc;
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV4_gc;
             break;
         case 3:
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV8_gc;
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV8_gc;
             break;
         case 4:
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV16_gc;
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV16_gc;
             break;
         case 5:
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc;
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc;
             break;
         case 6: 
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV256_gc;   
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV256_gc;   
         default:
-            TCA0.CTRLA = TCA_SPLIT_CLKSEL_DIV1024_gc;
+            TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV1024_gc;
     }   
 }
 
@@ -60,7 +60,7 @@ void stepper_TCB_init()
     TCB2.CCMPH = 127;
     TCB2.CCMPL = 255;
     
-    TCA0.CTRLD = (1 << SPLITM);
+    TCA0.SPLIT.CTRLD = (1 << 0);
 }
 
 
@@ -139,9 +139,9 @@ void PrepStep(void)
             {
                 st.direction.y.full = neg_dir;
             }
-            st->step.y.full = abs(delta.y.full);
-            st->counter.y.full = 0;
-            st->stepflag.ready |= (1 << Y_FSTEP_READY);
+            st.step.y.full = abs(delta.y.full);
+            st.counter.y.full = 0;
+            st.stepflag.ready |= (1 << Y_FSTEP_READY);
             
         }
         
@@ -172,7 +172,7 @@ void PrepStep(void)
                 st.direction.z.full = neg_dir;
             }
             
-            st.step.z.full = abs(delta.z.full)
+            st.step.z.full = abs(delta.z.full);
             st.counter.z.full = 0;
             st.stepflag.ready |= (1 << Z_FSTEP_READY);
             

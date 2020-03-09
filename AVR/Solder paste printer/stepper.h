@@ -20,6 +20,7 @@ extern "C" {
 #endif	/* STEPPER_H */
 
 void PrepStep(void);
+void stepper_TCB_init();
 
 /*Step ready flags */
 #define X_MSTEP_READY    0

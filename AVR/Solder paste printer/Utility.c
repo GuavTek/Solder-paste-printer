@@ -90,7 +90,7 @@ void InitClock(){
 	//RTC.INTCTRL = RTC_CMP_bm;
 	
 	//Debug enable
-	RTC.DBGCTRL |= RTC_DBGRUN_bm;
+	//RTC.DBGCTRL |= RTC_DBGRUN_bm;
 	
 	//Set prescaler and enable RTC
 	RTC.CTRLA = RTC_PRESCALER_DIV1_gc | RTC_RTCEN_bm ;
@@ -98,12 +98,10 @@ void InitClock(){
 }
 
 void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
-	//Reset timer
-	//while(RTC.STATUS & RTC_CNTBUSY_bm){}
-	//RTC.CNT = 0;
-	
+		
 	//Convert from milliseconds to periods of 1.024kHz crystal
 	uint32_t tempTime = (waitTime * 24)/1000 + waitTime + RTC.CNT;
+	
 	//Set wait-time
 	while(RTC.STATUS & RTC_CMPBUSY_bm){}
 	RTC.CMP = tempTime;
