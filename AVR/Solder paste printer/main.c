@@ -21,6 +21,7 @@ uint16_t timer = 0;
 int main(void)
 {
 	USART_INIT(3, 9600);
+    stepper_TCB_init();
 	USARTn.TXDATAL = 'o';
 	//Set clk_per prescaler not working?
 //	CLKCTRL.MCLKCTRLB = (PDIV << 1)|(1 << 0);
@@ -40,7 +41,7 @@ int main(void)
 				print();
 			}
 		}
-		
+		PrepStep();
 		timer++;
 		
 		if (timer == 0)

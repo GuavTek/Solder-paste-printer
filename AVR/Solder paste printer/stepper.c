@@ -65,14 +65,15 @@ void stepper_TCB_init()
 
 
 
-void PrepStep(st_block *st)
+void PrepStep()
 {
+    st_block *st
     gc_block GetLine, *pp;
     StepVector3 delta;
     uint8_t prescale;
     uint8_t buffer_state = BlockBufferAvailable();
     
-    
+    st = &st_block;
     pp = &GetLine;
     
     if ((buffer_state != BUFFER_EMPTY) && (st->stepflag.line == 0));
