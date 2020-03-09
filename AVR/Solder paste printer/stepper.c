@@ -72,7 +72,7 @@ void PrepStep(void)
     uint8_t prescale;
     uint8_t buffer_state = BlockBufferAvailable();
     
-    if ((buffer_state != BUFFER_EMPTY) && (st.stepflag.line == 0));
+    if ((buffer_state != BUFFER_EMPTY) && (st.stepflag.line == 56));
     {
         GetLine = ReadBlockBuffer();
         
