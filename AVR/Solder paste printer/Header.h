@@ -10,6 +10,7 @@
 #define HEADER_H_
 
 #include <avr/io.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
