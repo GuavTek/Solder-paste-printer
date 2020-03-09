@@ -14,8 +14,6 @@ st_block st;
 
 void prescale_select(uint8_t sel)
 {
-    TCA0.CTRLD = (1 << SPLITM);
-    
     switch (sel)
     {
         case 1:
@@ -61,6 +59,8 @@ void stepper_TCB_init()
     TCB2.CTRLB = TCB_CNTMODE_PWM8_gc; 
     TCB2.CCMPH = 127;
     TCB2.CCMPL = 255;
+    
+    TCA0.CTRLD = (1 << SPLITM);
 }
 
 
@@ -100,28 +100,6 @@ void PrepStep(st_block *st)
                 st->last_pos += delta;
                 break;
         }
-        
-        switch(prescale)
-        {
-            case(0):
-                prescale_select(0);
-                break;
-            case(1):
-                prescale_select(6);
-                break;
-            case(2):
-                prescale_select(6);
-                break;
-            case(3):
-                prescale_select(6);
-                break;
-            case(4):
-                prescale_select(6);
-                break;
-            /*case(speed):
-                prescale_select(6);
-                break;*/
-        } 
         
         if(delta.x.full != 0)
         {
@@ -219,10 +197,12 @@ void PrepStep(st_block *st)
             st->stepflag.ready |= (1 << Z_MSTEP_READY);
         }
         
+        prescale_select(st->s_velosity);
+        
         if(st->stepflag.ready & ((1 << X_FSTEP_READY) | (1 << X_MSTEP_READY)))
         {   
             st->stepflag.line |= (1 << X_LINE_READY);
-            /*st->stepflag.line &= ~(1 << X_STEP_EXE);*/
+            st->stepflag.line &= ~(1 << X_LINE_EXE);
             TCB0.CNT = 0;
             TCB0.INTCTRL |= TCB_CAPT_bm; 
         }
@@ -230,7 +210,7 @@ void PrepStep(st_block *st)
         if(st->stepflag.ready & ((1 << Y_FSTEP_READY) | (1 << Y_MSTEP_READY)))
         {
             st->stepflag.line |= (1 << Y_LINE_READY);
-            /*st->stepflag.line &= ~(1 << Y_STEP_EXE);*/
+            st->stepflag.line &= ~(1 << Y_LINE_EXE);
             TCB1.CNT = 0;
             TCB1.INTCTRL |= TCB_CAPT_bm; 
         }
@@ -238,7 +218,7 @@ void PrepStep(st_block *st)
         if(st->stepflag.ready & ((1 << Z_FSTEP_READY) | (1 << Z_MSTEP_READY)))
         {
             st->stepflag.line |= (1 << Z_LINE_READY);
-            /*st->stepflag.line &= ~(1 << Z_STEP_EXE);*/
+            st->stepflag.line &= ~(1 << Z_LINE_EXE);
             TCB2.CNT = 0;
             TCB2.INTCTRL |= TCB_CAPT_bm;
         }
@@ -288,50 +268,13 @@ ISR(TIMER0_COMPB_vect) //TCB0 vector
                 }
                 break;
                 
-            case((1 << X_LINE_RET)):
-                
-                if(st.stepflag.ret & (1 << X_FSTEP_RET))
-                {    
-                    PORTA.DIR |= PIN2_bm;
-                    PORTC.DIR ^= (st.direction.z.full << PIN2);
-                
-                    if((st.counter.x.full) == (st.step.x.full_ret))
-                    {
-                        PORTA.DIR &= ~PIN2_bm;
-                        st.stepflag.ret &= ~(1 << X_FSTEP_RET);
-                        
-                        return;
-                    }
-                    else
-                    {
-                        st.counter.x.full--;
-                    }
-                }
-                
-                else if(st.stepflag.ret & (1 << X_MSTEP_RET))
-                {    
-                    PORTA.DIR |= PIN2_bm;
-                    PORTC.DIR ^= (st.direction.z.micro << PIN6);
-                
-                    if((st.counter.x.micro) == (st.step.x.micro_ret))
-                    {
-                        PORTA.DIR &= ~PIN2_bm;
-                        st.stepflag.return &= ~(1 << X_MSTEP_RET);
-                        
-                        return;
-                    }
-                    else
-                    {
-                        st.counter.x.micro--;
-                    }
-                }
-                else
-                {
-                    st.stepflag.line &= ~(1 << X_LINE_RET);
-                    TCB0.INTCTRL &= ~TCB_CAPT_bm;
-                }
-                break;
         }
+    }
+    
+    else
+    {
+        st.stepflag.line &= ~(1 << X_LINE_EXE);
+        TCB0.INTCTRL &= ~TCB_CAPT_bm; 
     }
     
     TCB0.INTFLAGS = TCB_CAPT_bm;// clear interrupt flag
@@ -377,51 +320,12 @@ ISR(TIMER1_COMPB_vect) //TCB1 vector
                     st.counter.y.micro++;
                 }
                 break;
-                
-            case((1 << Y_LINE_RET)):
-                
-                if(st.stepflag.ret & (1 << Y_FSTEP_RET))
-                {    
-                    PORTA.DIR |= PIN3_bm;
-                    PORTA.DIR ^= (st.direction.y.full << PIN5);
-                
-                    if((st.counter.y.full) == (st.step.y.full_ret))
-                    {
-                        PORTA.DIR &= ~PIN3_bm;
-                        st.stepflag.ret &= ~(1 << Y_FSTEP_RET);
-                        
-                        return;
-                    }
-                    else
-                    {
-                        st.counter.y.full--;
-                    }
-                }
-                
-                else if(st.stepflag.ret & (1 << Y_MSTEP_RET))
-                {    
-                    PORTA.DIR |= PIN3_bm;
-                    PORTA.DIR ^= (st.direction.y.micro << PIN5);
-                
-                    if((st.counter.y.micro) == (st.step.y.micro_ret))
-                    {
-                        PORTA.DIR &= ~PIN3_bm;
-                        st.stepflag.ret &= ~(1 << Y_MSTEP_RET);
-                        
-                        return;
-                    }
-                    else
-                    {
-                        st.counter.y.micro--;
-                    }
-                }
-                else
-                {
-                    st.stepflag.line &= ~(1 << Y_LINE_RET);
-                    TCB1.INTCTRL &= ~TCB_CAPT_bm;
-                }
-                break;
         }
+    }
+    else
+    {
+        st.stepflag.line &= ~(1 << Y_LINE_EXE);
+        TCB1.INTCTRL &= ~TCB_CAPT_bm; 
     }
     
     TCB1.INTFLAGS = TCB_CAPT_bm;// clear interrupt flag
