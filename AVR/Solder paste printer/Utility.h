@@ -68,7 +68,9 @@ typedef struct {
 	Status state;
 	enum MotionModes task;
 	bool abortPrint;
-	bool running;
+	bool noError;
+	bool blockFinished;
+	bool statusDump;
 } PrinterState;
 
 //Should contain all parameters of a command
@@ -80,12 +82,14 @@ typedef struct {
 	uint8_t dispenseRate;
 	uint8_t moveSpeed;
 	bool dispenseEnable;
-	uint32_t dwellTime;
+	uint16_t dwellTime;
+	uint16_t blockNumber;
 	enum CoordMode coordinateMode;
 	enum CoordUnit coordinateUnit;
 } gc_block;
 
 extern PrinterState currentState;
+extern gc_block theCurrentBlock;
 
 //Will find a characters position in the string
 uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar);

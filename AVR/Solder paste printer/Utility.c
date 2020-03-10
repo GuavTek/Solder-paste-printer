@@ -9,6 +9,8 @@
 
 PrinterState currentState;
 
+gc_block theCurrentBlock;
+
 //The function the RTC calls when triggered
 //Is set by StartDwell
 void (*RTC_Callback)(void);
@@ -84,12 +86,7 @@ void InitClock(){
 	//Use internal crystal
 	RTC.CLKSEL = RTC_CLKSEL_INT1K_gc;
 	
-	
 	RTC.PER = 0xFFFF;
-	RTC.CMP = 0x10;
-	
-	//Enable compare match interrupt
-	//RTC.INTCTRL = RTC_CMP_bm;
 	
 	//Debug enable
 	//RTC.DBGCTRL |= RTC_DBGRUN_bm;

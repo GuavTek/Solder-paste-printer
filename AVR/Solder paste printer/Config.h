@@ -20,7 +20,7 @@
 //USB com port
 #define USARTn USART3
 
-#define BLOCK_BUFFER_SIZE 8
+#define BLOCK_BUFFER_SIZE 64
 #define RX_BUFFERSIZE 128
 #define TX_BUFFERSIZE 64
 

@@ -113,11 +113,11 @@ void RX_write()
 			return;
 		}
         case CMD_STATUS_REPORT: {
-			ReportStatus();
+			currentState.statusDump = true;
 			return;
 		}
         case CMD_CYCLE_START: {
-			currentState.running = true;
+			currentState.noError = true;
 			break;
 		}
 		case CMD_ABORT: {
@@ -207,6 +207,12 @@ void TX_write(uint8_t data)
 void TX_read()
 {
 	
+	//Return if transmit is not actually ready
+	if (!(USARTn.STATUS & USART_DREIF_bm))
+	{
+		return;
+	}
+	
 	// The state of the RX buffer has high priority
 	if (RX_Full != prevRX_Full)
 	{
@@ -223,7 +229,7 @@ void TX_read()
 	} else {
 	    uint8_t tail = tx_tail + 1;
 	 
-	    if (tx_tail == TX_BUFFERSIZE)
+	    if (tail >= TX_BUFFERSIZE)
 		{
 			tail = 0;
 	    }
@@ -246,7 +252,7 @@ ReturnCodes TX_available(){
 	}
 	
 	uint8_t head = tx_head + 1;
-	if (head == TX_BUFFERSIZE)
+	if (head >= TX_BUFFERSIZE)
 	{
 		head = 0;
 	}
@@ -274,3 +280,20 @@ void TX_Jumpstart(){
 		USARTn.CTRLA |= USART_TXCIE_bm;
 	}
 }
+
+ISR(USART3_RXC_vect){
+	RX_write();
+	
+}
+
+ISR(USART3_TXC_vect){
+	if (TX_available() != BUFFER_EMPTY)
+	{
+		TX_read();
+	} else {
+		//Disable interrupt if there is no data to send
+		USARTn.CTRLA &= ~USART_TXCIE_bm;
+	}
+	//USARTn.STATUS 
+}
+
