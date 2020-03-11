@@ -78,9 +78,9 @@ void ReportStatus(){
 	if (parIndex == 0)
 	{
 		strBuff[0] = '#';
-		strBuff[1] = 'h' + currentState.state;
+		strBuff[1] = 'l' + currentState.state;
 		strBuff[2] = currentState.noError ? 'n' : 'y';
-		strBuff[3] = 'h' + currentState.task;
+		strBuff[3] = 'l' + currentState.task;
 		for (uint8_t i = 5; i < 8; i++)
 		{
 			strBuff[i] = ' ';

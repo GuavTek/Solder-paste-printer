@@ -50,7 +50,7 @@ int main(void)
 			}
 		}
 		
-		TX_Jumpstart();
+		//TX_Jumpstart();
 
     }
 }
@@ -82,7 +82,7 @@ void Print(void) {
 		{
 			//Error state
 		}
-		TX_Jumpstart();
+		//TX_Jumpstart();
 		
 		if (currentState.statusDump)
 		{
@@ -127,8 +127,7 @@ void GetNewBlock(){
 		case Arc_CW:
 		case Arc_CCW:
 		case Home: {
-			//PrepStep();
-			StartTimer(500, EndDwell);
+			PrepStep();
 			break;
 		}
 		case Dwell: {

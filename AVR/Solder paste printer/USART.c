@@ -26,7 +26,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	uint16_t baudDiv = (4 * fCLK_PER / baudrate);
 	
 	//Enable interrupts RX/TX complete
-	uint8_t RA = USART_TXCIE_bm | USART_RXCIE_bm;
+	uint8_t RA = USART_DREIE_bm | USART_RXCIE_bm;
 	
 	//Enable tx and rx
 	uint8_t RB = USART_RXEN_bm|USART_TXEN_bm;
@@ -202,6 +202,7 @@ void TX_write(uint8_t data)
     
     tx_buffer_data[head] = data;
     tx_head = head;
+	USARTn.CTRLA |= USART_DREIE_bm;
 }
 
 void TX_read()
@@ -274,10 +275,10 @@ void RTX_FLUSH(){
 }
 
 void TX_Jumpstart(){
-	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_TXCIE_bm))
+	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_DREIE_bm))
 	{
-		TX_read();
-		USARTn.CTRLA |= USART_TXCIE_bm;
+		//TX_read();
+		USARTn.CTRLA |= USART_DREIE_bm;
 	}
 }
 
@@ -286,13 +287,13 @@ ISR(USART3_RXC_vect){
 	
 }
 
-ISR(USART3_TXC_vect){
+ISR(USART3_DRE_vect){
 	if (TX_available() != BUFFER_EMPTY)
 	{
 		TX_read();
 	} else {
 		//Disable interrupt if there is no data to send
-		USARTn.CTRLA &= ~USART_TXCIE_bm;
+		USARTn.CTRLA &= ~USART_DREIE_bm;
 	}
 	//USARTn.STATUS 
 }

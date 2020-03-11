@@ -24,7 +24,8 @@
 #define RX_BUFFERSIZE 128
 #define TX_BUFFERSIZE 64
 
-#define METRIC_STEP_LENGTH 0.01495;	//Length of a step in millimeters
+#define METRIC_STEP_LENGTH 0.01495	//Length of a step in millimeters
+#define INCH_STEP_LENGTH 0.0005886	
 
 //G-code
 #define MAX_G_LINE 0
