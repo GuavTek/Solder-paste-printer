@@ -26,7 +26,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	uint16_t baudDiv = (4 * fCLK_PER / baudrate);
 	
 	//Enable interrupts RX/TX complete
-	uint8_t RA = USART_TXCIE_bm | USART_RXCIE_bm;
+	uint8_t RA = USART_DREIE_bm | USART_RXCIE_bm;
 	
 	//Enable tx and rx
 	uint8_t RB = USART_RXEN_bm|USART_TXEN_bm;
@@ -113,11 +113,11 @@ void RX_write()
 			return;
 		}
         case CMD_STATUS_REPORT: {
-			ReportStatus();
+			currentState.statusDump = true;
 			return;
 		}
         case CMD_CYCLE_START: {
-			currentState.running = true;
+			currentState.noError = true;
 			break;
 		}
 		case CMD_ABORT: {
@@ -202,10 +202,17 @@ void TX_write(uint8_t data)
     
     tx_buffer_data[head] = data;
     tx_head = head;
+	USARTn.CTRLA |= USART_DREIE_bm;
 }
 
 void TX_read()
 {
+	
+	//Return if transmit is not actually ready
+	if (!(USARTn.STATUS & USART_DREIF_bm))
+	{
+		return;
+	}
 	
 	// The state of the RX buffer has high priority
 	if (RX_Full != prevRX_Full)
@@ -223,7 +230,7 @@ void TX_read()
 	} else {
 	    uint8_t tail = tx_tail + 1;
 	 
-	    if (tx_tail == TX_BUFFERSIZE)
+	    if (tail >= TX_BUFFERSIZE)
 		{
 			tail = 0;
 	    }
@@ -246,7 +253,7 @@ ReturnCodes TX_available(){
 	}
 	
 	uint8_t head = tx_head + 1;
-	if (head == TX_BUFFERSIZE)
+	if (head >= TX_BUFFERSIZE)
 	{
 		head = 0;
 	}
@@ -268,9 +275,26 @@ void RTX_FLUSH(){
 }
 
 void TX_Jumpstart(){
-	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_TXCIE_bm))
+	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_DREIE_bm))
 	{
-		TX_read();
-		USARTn.CTRLA |= USART_TXCIE_bm;
+		//TX_read();
+		USARTn.CTRLA |= USART_DREIE_bm;
 	}
 }
+
+ISR(USART3_RXC_vect){
+	RX_write();
+	
+}
+
+ISR(USART3_DRE_vect){
+	if (TX_available() != BUFFER_EMPTY)
+	{
+		TX_read();
+	} else {
+		//Disable interrupt if there is no data to send
+		USARTn.CTRLA &= ~USART_DREIE_bm;
+	}
+	//USARTn.STATUS 
+}
+

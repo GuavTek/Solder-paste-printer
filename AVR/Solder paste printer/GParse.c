@@ -8,10 +8,10 @@
 #include "Header.h"
 
 //Will return true when a character should be ignored
-bool IgnoreChar(char in);
+inline bool IgnoreChar(char in);
 
 //Will look for the end of a word, returns true when a new word is detected
-bool WordEnd(char in);
+inline bool WordEnd(char in);
 
 //Write to block buffer
 void WriteBlockBuffer(gc_block block);
@@ -263,7 +263,7 @@ ReturnCodes ParseWord(){
 			}
 			case 'N':{
 				//Line number
-				
+				currentBlock.blockNumber = num;
 				return NONE;
 			}
 			case 'O':{
@@ -334,7 +334,7 @@ void InitParser(){
 	WriteBlockBuffer(currentBlock);
 }
 
-bool IgnoreChar(char in){
+inline bool IgnoreChar(char in){
 	
 	if (in == ' ')
 	{
@@ -367,7 +367,7 @@ bool IgnoreChar(char in){
 	return false;
 }
 
-bool WordEnd(char in){
+inline bool WordEnd(char in){
 	if (in == '.')
 	{
 		return false;

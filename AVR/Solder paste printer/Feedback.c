@@ -14,7 +14,7 @@ void ReportEvent(ReturnCodes code, int num){
 		return;
 	}
 	
-	if (!currentState.running)
+	if (!currentState.noError)
 	{
 		TX_write('!');
 	}
@@ -70,5 +70,39 @@ void ReportEvent(ReturnCodes code, int num){
 }
 
 void ReportStatus(){
+	static uint8_t parIndex;
+	const uint8_t ReportLen = 10;
+	static char strBuff[10];
 	
+	//Generate report
+	if (parIndex == 0)
+	{
+		strBuff[0] = '#';
+		strBuff[1] = 'l' + currentState.state;
+		strBuff[2] = currentState.noError ? 'n' : 'y';
+		strBuff[3] = 'l' + currentState.task;
+		for (uint8_t i = 5; i < 8; i++)
+		{
+			strBuff[i] = ' ';
+		}
+		itoa(theCurrentBlock.blockNumber, strBuff + 4, 10);
+		strBuff[8] = '\n';
+		strBuff[9] = '\r';
+	}
+	
+	
+	//Send report
+	while (TX_available() != BUFFER_FULL && parIndex < ReportLen)
+	{
+		TX_write(strBuff[parIndex]);
+		parIndex++;
+	}
+	
+	//Finished reporting
+	if (parIndex >= ReportLen)
+	{
+		currentState.statusDump = false;
+		parIndex = 0;
+	}
 }
+

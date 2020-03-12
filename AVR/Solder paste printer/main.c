@@ -7,11 +7,19 @@
 
 #include "Header.h"
 
-
+//Primary loop when printing
 void Print(void);
 
+//Initialize sensors that detect the edge of printer
 void InitEndSensors();
 
+//Start excecuting a new block
+void GetNewBlock();
+
+//Tells the system that it can continue the process
+void EndDwell();
+
+//Blink led
 void Blinky(void);
 
 uint16_t timer = 1000;
@@ -22,12 +30,13 @@ int main(void)
     stepper_TCB_init();
 	InitEndSensors();
 	InitClock();
+	InitDispenser();
 	PORTF.DIRSET = PIN5_bm;	//Onboard LED
 	sei();
 	Blinky();
 	USARTn.TXDATAL = 'o';
 	currentState.state = idle;
-    currentState.running = true;
+    currentState.noError = true;
     while (1) 
     {
 		//Wait for start-character
@@ -41,7 +50,7 @@ int main(void)
 			}
 		}
 		
-		TX_Jumpstart();
+		//TX_Jumpstart();
 
     }
 }
@@ -58,34 +67,85 @@ void Print(void) {
 	TX_write('k');
 	currentState.state = printing;
 	currentState.abortPrint = false;
+	currentState.blockFinished = true;
+	currentState.noError = true;
 	timer = 200;
 	PORTF.OUTSET = PIN5_bm;
 	
 	while(1){
-		if (currentState.running)
+		if (currentState.noError)
 		{
 			ParseStream();
-			PrepStep();
+			GetNewBlock();
 		} 
 		else
 		{
 			//Error state
-			
+		}
+		//TX_Jumpstart();
+		
+		if (currentState.statusDump)
+		{
+			ReportStatus();
 		}
 		
-		TX_Jumpstart();
-		
-		
 		if(currentState.abortPrint){
-			break;
+			//Stops printing and returns to idle mode
+			RTX_FLUSH();
+			return;
 		}
 		
 	}
+}
+
+void GetNewBlock(){
+	//Return if previous block is not finished
+	if (!currentState.blockFinished)
+	{
+		return;
+	}
 	
-	//Stops printing and returns to idle mode
-	currentState.running = true;
-	RTX_FLUSH();
-	return;
+	if (BlockBufferAvailable() == BUFFER_EMPTY)
+	{
+		return;
+	} else {
+		theCurrentBlock = ReadBlockBuffer();
+	}
+	
+	currentState.task = theCurrentBlock.motion;
+	
+	if (theCurrentBlock.dispenseEnable)
+	{
+		Dispense(true);
+	} else {
+		Dispense(false);
+	}
+	
+	switch(theCurrentBlock.motion){
+		case Linear_interpolation:
+		case Rapid_position:
+		case Arc_CW:
+		case Arc_CCW:
+		case Home: {
+			PrepStep();
+			break;
+		}
+		case Dwell: {
+			StartTimer(theCurrentBlock.dwellTime, EndDwell);
+			break;
+		}
+		case Stop: {
+			currentState.abortPrint = true;
+			break;
+		}
+	}
+	currentState.blockFinished = false;
+}
+
+void EndDwell(){
+	//Alls well that ends dwell
+	currentState.blockFinished = true;
+	Blinky();
 }
 
 void InitEndSensors(){
@@ -94,21 +154,6 @@ void InitEndSensors(){
 	PORTD.PIN1CTRL = PORT_ISC_LEVEL_gc;
 	PORTD.PIN2CTRL = PORT_ISC_LEVEL_gc;
 	PORTD.PIN5CTRL = PORT_ISC_LEVEL_gc;
-}
-
-ISR(USART3_RXC_vect){
-	RX_write();
-	
-}
-
-ISR(USART3_TXC_vect){
-	if (TX_available() != BUFFER_EMPTY)
-	{
-		TX_read();
-	} else {
-		//Disable interrupt if there is no data to send
-		USARTn.CTRLA &= ~USART_TXCIE_bm;
-	}
 }
 
 ISR(PORTC_PORT_vect){
@@ -121,7 +166,7 @@ ISR(PORTC_PORT_vect){
 		//Log unexpected end trigger, and halt printing
 		if (currentState.task != Home)
 		{
-			currentState.running = false;
+			currentState.noError = false;
 			ReportStatus(UNEXPECTED_EDGE, 'Y');
 		}
 		PORTC.INTFLAGS |= PIN5_bm;
@@ -136,7 +181,7 @@ ISR(PORTD_PORT_vect){
 		//Log unexpected end trigger, and halt printing
 		if (currentState.task != Home)
 		{
-			currentState.running = false;
+			currentState.noError = false;
 			ReportStatus(UNEXPECTED_EDGE, 'X');
 		}
 		PORTD.INTFLAGS |= PIN2_bm;
@@ -148,7 +193,7 @@ ISR(PORTD_PORT_vect){
 		//Log unexpected end trigger, and halt printing
 		if (currentState.task != Home)
 		{
-			currentState.running = false;
+			currentState.noError = false;
 			ReportStatus(UNEXPECTED_EDGE, 'Z');
 		}
 		PORTD.INTFLAGS |= PIN5_bm;
