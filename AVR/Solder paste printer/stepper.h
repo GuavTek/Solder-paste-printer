@@ -20,7 +20,7 @@ extern "C" {
 #endif	/* STEPPER_H */
 
 void PrepStep(void);
-void stepper_TCB_init();
+void stepper_TCB_init(void);
 void prescale_select(uint8_t sel);
 
 /*Step ready flags */
@@ -30,6 +30,7 @@ void prescale_select(uint8_t sel);
 #define X_FSTEP_READY    3
 #define Y_FSTEP_READY    4
 #define Z_FSTEP_READY    5
+#define BUFFER_READ		 6
 
 /*Step line flags */
 #define X_LINE_READY    0
@@ -38,15 +39,6 @@ void prescale_select(uint8_t sel);
 #define X_LINE_EXE      3
 #define Y_LINE_EXE      4
 #define Z_LINE_EXE      5
-
-#define X_MSTEP_RET    0
-#define Y_MSTEP_RET    1
-#define Z_MSTEP_RET    2
-#define X_FSTEP_RET    3
-#define Y_FSTEP_RET    4
-#define Z_FSTEP_RET    5
-
-
 
 enum stepper_pres 
 {
@@ -63,43 +55,21 @@ enum DirSet
     pos_dir
 };
 
-typedef struct
-{
-    enum DirSet full,
-                micro;
-}dir;
 
 typedef struct
 {
-    dir     x,
-            y,
-            z;
-         
-}st_dir;    
+	enum DirSet x_full;
+	enum DirSet x_micro;
+	enum DirSet y_full;
+	enum DirSet y_micro;
 
-typedef struct
-{
-    uint32_t full,
-             full_ret;
-    
-    uint8_t micro,
-            micro_ret;
-    
-}st_step;
+}dirAxis;
 
-typedef struct
-{
-    st_step x,
-            y,
-            z; 
-     
-}st_vector;
 
 typedef struct
 {
     volatile uint32_t   full;
     volatile uint8_t    micro;
-    
 }count;
 
 typedef struct
@@ -111,16 +81,20 @@ typedef struct
 
 typedef struct
 {
-    uint8_t ready,
-            line;
+	uint8_t ready;
+	uint8_t line;
 }st_flag;
 
 typedef struct
 {
-    st_vector   step;
+    StepVector3 step;
     StepVector3 last_pos;
     st_count    counter;
     st_flag     stepflag;
-    st_dir      direction;
+	dirAxis		direction;
     enum stepper_pres s_velosity;
 }st_block;
+
+
+	
+	

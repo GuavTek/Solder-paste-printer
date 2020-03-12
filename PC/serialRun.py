@@ -1,4 +1,5 @@
 import pprint
+
 import serial
 from serial.tools import list_ports
 
@@ -24,7 +25,7 @@ def intSerialport():
     # connect to desired device
     # str in the if statement must be changed
     # if running in windows
-    if ("nEDBG CMSIS-DAP" in y.description):
+    if ("Curiosity Virtual COM Port (COM6) " in y.description):
         ser.port = y.device
         # show std. settings and stores dict
         # in s
