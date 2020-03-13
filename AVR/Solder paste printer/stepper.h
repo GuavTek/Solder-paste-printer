@@ -19,8 +19,9 @@ extern "C" {
 
 #endif	/* STEPPER_H */
 
-void PrepStep(void);
+
 void stepper_TCB_init(void);
+
 void prescale_select(uint8_t sel);
 
 /*Step ready flags */
@@ -30,7 +31,7 @@ void prescale_select(uint8_t sel);
 #define X_FSTEP_READY    3
 #define Y_FSTEP_READY    4
 #define Z_FSTEP_READY    5
-#define BUFFER_READ		 6
+
 
 /*Step line flags */
 #define X_LINE_READY    0
@@ -39,6 +40,7 @@ void prescale_select(uint8_t sel);
 #define X_LINE_EXE      3
 #define Y_LINE_EXE      4
 #define Z_LINE_EXE      5
+
 
 enum stepper_pres 
 {
@@ -51,7 +53,7 @@ enum stepper_pres
 
 enum DirSet
 {
-    neg_dir,
+    neg_dir, 
     pos_dir
 };
 
@@ -87,7 +89,7 @@ typedef struct
 
 typedef struct
 {
-    StepVector3 step;
+    StepVector3 steps;
     StepVector3 last_pos;
     st_count    counter;
     st_flag     stepflag;

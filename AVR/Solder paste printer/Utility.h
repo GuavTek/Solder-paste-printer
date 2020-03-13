@@ -80,7 +80,7 @@ typedef struct {
 	uint32_t arcRadius;
 	enum MotionModes motion;
 	uint8_t dispenseRate;
-	uint8_t moveSpeed;
+	uint16_t moveSpeed;
 	bool dispenseEnable;
 	uint16_t dwellTime;
 	uint16_t blockNumber;

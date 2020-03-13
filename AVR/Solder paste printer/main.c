@@ -27,10 +27,10 @@ uint16_t timer = 1000;
 int main(void)
 {
 	USART_INIT(3, 9600);
-    stepper_TCB_init();
 	InitEndSensors();
 	InitClock();
 	InitDispenser();
+	stepper_TCB_init();
 	PORTF.DIRSET = PIN5_bm;	//Onboard LED
 	sei();
 	Blinky();
@@ -77,6 +77,7 @@ void Print(void) {
 		{
 			ParseStream();
 			GetNewBlock();
+			
 		} 
 		else
 		{
@@ -120,6 +121,8 @@ void GetNewBlock(){
 	} else {
 		Dispense(false);
 	}
+	
+	FeedRateCalc(theCurrentBlock.moveSpeed);
 	
 	switch(theCurrentBlock.motion){
 		case Linear_interpolation:
