@@ -51,9 +51,7 @@ ReturnCodes ParseStream(){
 	}
 	
 	//Load next character from buffer
-	//Check if there is data
 	char nextChar = RX_read();
-	//char nextChar = USARTn.RXDATAL;
 	
 	//Discard ignored chars
 	if (IgnoreChar(nextChar)){
@@ -80,6 +78,7 @@ ReturnCodes ParseStream(){
 				WriteBlockBuffer(currentBlock);
 				readyBlock = false;
 			}
+
 			ReportEvent(NEW_BLOCK, 0);
 			return NEW_BLOCK;
 		}
@@ -107,9 +106,10 @@ ReturnCodes ParseStream(){
 
 ReturnCodes ParseWord(){
 	char letter = currentWord[0];
-	int num = 0;
-	uint8_t fraction = 0;
-	uint8_t precision = 0;
+	float val = 0;
+	int num;
+	//uint16_t fraction = 0;
+	//uint8_t precision = 0;
 	static int parameter = 0;
 	
 	//Return if word is too short
@@ -131,23 +131,34 @@ ReturnCodes ParseWord(){
 	//Scan the string to see if it is a float
 	uint8_t dotPos = ScanWord(currentWord, 1, '.');
 	
+	//Convert string to float
+	val = atof(currentWord + 1);
+
+	
 	//If float, convert fraction separately
 	if (dotPos)
 	{
 		char tempSlice[MAX_WORD_SIZE];
 		Slice(currentWord, tempSlice, 1, dotPos - 1);
 		num = atoi(tempSlice);
-		precision = StringLength(currentWord, dotPos + 1);
-		Slice(currentWord, tempSlice, dotPos + 1, dotPos + precision);
-		fraction = atoi(tempSlice);
+	//	precision = StringLength(currentWord, dotPos + 1);
+	//	Slice(currentWord, tempSlice, dotPos + 1, dotPos + precision);
+	//	fraction = atoi(tempSlice);
 		
 	} else {
 		num = atoi(currentWord + 1);
 	}
 	
+
+	//Turn characters uppercase
+	if (letter <= 'z' && letter >= 'a')
+	{
+		letter -= ('a' - 'A');
+	}
+
 	//Detect if it is real-time command
 	if(letter > 0x7F){
-		
+		//Should be picked up when received
 	} else {
 		switch (letter)
 		{
@@ -208,17 +219,17 @@ ReturnCodes ParseWord(){
 			
 			case 'I':{
 				//Arc center X
-				currentBlock.arcCentre.x = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.arcCentre.x = Metric2Step(val);
 				break;	
 			}
 			case 'J':{
 				//Arc center Y
-				currentBlock.arcCentre.y = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.arcCentre.y = Metric2Step(val);
 				break;
 			}
 			case 'K':{
 				//Arc center Z
-				currentBlock.arcCentre.z = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.arcCentre.z = Metric2Step(val);
 				break;	
 			}
 			case 'M':{
@@ -226,19 +237,16 @@ ReturnCodes ParseWord(){
 				switch(num){
 					case 0: {
 						//Compulsory stop
-						ReportEvent(STOP_DETECTED, 0);
 						currentBlock.motion = Stop;
 						break;
 					}
 					case 1: {
 						//Optional stop
-						ReportEvent(STOP_DETECTED, 0);
 						currentBlock.motion = Stop;
 						break;
 					}
 					case 2: {
 						//End of program
-						ReportEvent(STOP_DETECTED, 0);
 						currentBlock.motion = Stop;
 						break;
 					}
@@ -254,7 +262,6 @@ ReturnCodes ParseWord(){
 					}
 					case 30: {
 						//End of program, return to program top
-						ReportEvent(STOP_DETECTED, 0);
 						currentBlock.motion = Stop;
 						break;
 					}
@@ -288,17 +295,17 @@ ReturnCodes ParseWord(){
 			}
 			case 'X':{
 				//Position X
-				currentBlock.pos.x = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.pos.x = Metric2Step(val);
 				break;
 			}
 			case 'Y':{
 				//Position Y
-				currentBlock.pos.y = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.pos.y = Metric2Step(val);
 				break;
 			}
 			case 'Z':{
 				//Position Z
-				currentBlock.pos.z = Metric2Step(num + (fraction / pow(10, precision)));
+				currentBlock.pos.z = Metric2Step(val);
 				break;
 			}
 			default:{
