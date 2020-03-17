@@ -60,7 +60,6 @@ void Blinky(){
 	StartTimer(timer, Blinky);
 }
 
-
 //Main loop when printing
 void Print(void) {
 	InitParser();
@@ -69,7 +68,7 @@ void Print(void) {
 	currentState.abortPrint = false;
 	currentState.blockFinished = true;
 	currentState.noError = true;
-	timer = 200;
+	timer = 300;
 	PORTF.OUTSET = PIN5_bm;
 	
 	while(1){
@@ -115,12 +114,8 @@ void GetNewBlock(){
 	
 	currentState.task = theCurrentBlock.motion;
 	
-	if (theCurrentBlock.dispenseEnable)
-	{
-		Dispense(true);
-	} else {
-		Dispense(false);
-	}
+	Dispense(theCurrentBlock.dispenseEnable);
+	
 	
 	FeedRateCalc(theCurrentBlock.moveSpeed);
 	
@@ -131,6 +126,7 @@ void GetNewBlock(){
 		case Arc_CCW:
 		case Home: {
 			PrepStep();
+			StartTimer(200, EndDwell);
 			break;
 		}
 		case Dwell: {
@@ -139,6 +135,7 @@ void GetNewBlock(){
 		}
 		case Stop: {
 			currentState.abortPrint = true;
+			ReportEvent(STOP_DETECTED, 0);
 			break;
 		}
 	}
@@ -148,7 +145,6 @@ void GetNewBlock(){
 void EndDwell(){
 	//Alls well that ends dwell
 	currentState.blockFinished = true;
-	Blinky();
 }
 
 void InitEndSensors(){

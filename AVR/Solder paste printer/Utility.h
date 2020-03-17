@@ -112,6 +112,7 @@ void InitClock();
 //Runs a function after waittime, waittime in millisecond
 //Triggers RTC_CMP interrupt when done
 //Maximum 64 seconds
+//Can wait for up to 8 functions simultaneously
 void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void));
 
 #endif /* UTILITY_H_ */
