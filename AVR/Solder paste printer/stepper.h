@@ -1,6 +1,6 @@
 /* 
  * File:   stepper.h
- * Author: oletobiasmoen
+ * Author: oletob
  *
  * Created on February 28, 2020, 1:17 PM
  */
@@ -19,10 +19,14 @@ extern "C" {
 
 #endif	/* STEPPER_H */
 
-
+/*Preps the steps that is to be executet in X and Y axis*/
+void PrepStep(void);
+/*Calculetes the prescaling of TCA0 and period and pulse 
+  lenght of the TCB compare registers from the value set from spindle value*/
+void FeedRateCalc(uint16_t speed);
+/*Inits the TCB to run in PWM mode*/
 void stepper_TCB_init(void);
 
-void prescale_select(uint8_t sel);
 
 /*Step ready flags */
 #define X_MSTEP_READY    0
@@ -42,15 +46,6 @@ void prescale_select(uint8_t sel);
 #define Z_LINE_EXE      5
 
 
-enum stepper_pres 
-{
-    full_step,
-    half_step,
-    quarter_step,
-    eight_step,
-    sixteen_step
-};
-
 enum DirSet
 {
     neg_dir, 
@@ -64,7 +59,6 @@ typedef struct
 	enum DirSet x_micro;
 	enum DirSet y_full;
 	enum DirSet y_micro;
-
 }dirAxis;
 
 
@@ -73,6 +67,7 @@ typedef struct
     volatile uint32_t   full;
     volatile uint8_t    micro;
 }count;
+
 
 typedef struct
 {
@@ -94,7 +89,6 @@ typedef struct
     st_count    counter;
     st_flag     stepflag;
 	dirAxis		direction;
-    enum stepper_pres s_velosity;
 }st_block;
 
 

@@ -1,6 +1,6 @@
 /* 
  * File:   stepper.c
- * Author: oletobiasmoen
+ * Author: oletob
  *
  * Created on February 28, 2020, 1:17 PM
  */
@@ -8,85 +8,84 @@
 #include "Header.h"
 
 st_block st;
-void PrepStep(void);
+
+/*sets prescaling of the TCA0 clk*/
+void prescale_select(uint8_t sel);
+/*calculates steps.*/
 StepCount Delta(StepCount steps, StepCount laststeps, int coordmode);
+/*Sets the direction of the steps*/
 enum DirSet StepDir(int steps);
-void FeedRateCalc(uint16_t speed);
+/*sets the period and pulse lenght of TCB PWM on X and Y axis*/ 
 void PerSelect(uint8_t per);
 
 void PrepStep(void)
 {
+	/*steps get prepped here. calculates the amount of steps according 
+	to how far it has stepped, sets the direction and stores the value 
+	from the current block in last_steps*/
     StepVector3 delta;	  
-    if(st.stepflag.line == 56  && currentState.blockFinished == true)
+    if(st.stepflag.line == 56)
     {
 		
 		delta.x = Delta(theCurrentBlock.pos.x, st.last_pos.x, theCurrentBlock.coordinateMode);
 		delta.y = Delta(theCurrentBlock.pos.y, st.last_pos.y, theCurrentBlock.coordinateMode);
-		delta.z = Delta(theCurrentBlock.pos.z, st.last_pos.z, theCurrentBlock.coordinateMode);
 		st.direction.x_full = StepDir(delta.x.full);
 		st.direction.y_full = StepDir(delta.y.full);
 		st.direction.x_micro = StepDir(delta.x.micro);
+		st.direction.y_micro = StepDir(delta.y.micro);
 		
-		st.steps.x.full = abs(delta.x.full);
-		st.steps.x.micro = abs(delta.x.micro);
-		if(st.steps.x.full > 0)
+		if(!(delta.x.full == 0))
 		{
+			st.steps.x.full = abs(delta.x.full);
 			st.stepflag.ready |= (1 << X_FSTEP_READY);
-			st.last_pos.x.full = abs(theCurrentBlock.pos.x.full);
+			st.last_pos.x.full = theCurrentBlock.pos.x.full;
+			st.counter.x.full = 0;
 		}
-		if(st.steps.x.micro > 0)
+		
+		if(!(delta.x.micro == 0))
 		{
+			st.steps.x.micro = abs(delta.x.micro);
 			st.stepflag.ready |= (1 << X_MSTEP_READY);
-			st.last_pos.x.micro = abs(theCurrentBlock.pos.x.micro);
+			st.last_pos.x.micro = theCurrentBlock.pos.x.micro;
+			st.counter.x.micro = 0;
 		}
+		
 		if(st.stepflag.ready & (1 << X_FSTEP_READY) || st.stepflag.ready & (1 << X_MSTEP_READY))
 		{ 
 			st.stepflag.line &= ~(1 << X_LINE_EXE);
 			st.stepflag.line |= (1 << X_LINE_READY);
-			st.counter.x.full = 0;
-			st.counter.x.micro = 0;
-			PORTA.DIRSET |= PIN2_bm;
 			TCB0.CNT = 0;
 			TCB0.CTRLB |= TCB_CCMPEN_bm;
 			TCB0.INTCTRL |= TCB_CAPT_bm;
 		}
-		
-		st.steps.y.full = abs(delta.y.full);
-		st.steps.y.micro = abs(delta.y.micro);
-		if(st.steps.y.full > 0)
+	
+		if(delta.y.full != 0)
 		{
+			st.steps.y.full = abs(delta.y.full);
 			st.stepflag.ready |= (1 << Y_FSTEP_READY);
-			st.last_pos.y.full = abs(theCurrentBlock.pos.x.full);
+			st.last_pos.y.full = theCurrentBlock.pos.y.full;
+			st.counter.y.full = 0;
 		}
-		if(st.steps.y.micro > 0)
+		if(delta.y.micro != 0)
 		{
+			st.steps.y.micro = abs(delta.y.micro);
 			st.stepflag.ready |= (1 << Y_MSTEP_READY);
+			st.last_pos.y.micro = theCurrentBlock.pos.y.micro;
+			st.counter.y.micro = 0;
 		}
 		if(st.stepflag.ready & (1 << Y_FSTEP_READY) || st.stepflag.ready & (1 << Y_MSTEP_READY))
 		{
 			st.stepflag.line &= ~(1 << Y_LINE_EXE);
 			st.stepflag.line |= (1 << Y_LINE_READY);
-			st.counter.y.full = 0;
-			st.counter.y.micro = 0;
-			PORTA.DIRSET |= PIN3_bm;
 			TCB1.CNT = 0;
 			TCB1.CTRLB |= TCB_CCMPEN_bm;
 			TCB1.INTCTRL |= TCB_CAPT_bm;
 		}
 	}
-	else
-	{
-		TCB0.CTRLB &= ~TCB_CCMPEN_bm;
-		TCB1.CTRLB &= ~TCB_CCMPEN_bm;
-	}
 }
-
-
-
 
 ISR(TCB0_INT_vect) //TCB0 vector
 {   
-	
     TCB0.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
     
 	if(st.stepflag.line & (1 << X_LINE_READY))
@@ -96,32 +95,23 @@ ISR(TCB0_INT_vect) //TCB0 vector
 			switch(st.direction.x_full)
 			{
 				case(pos_dir):
-					PORTC.OUT |= PIN3_bm;
+					PORTD.OUT |= PIN7_bm;
 				break;
+				
 				case(neg_dir):
-					PORTC.OUT &= ~PIN3_bm;
+					PORTD.OUT &= ~PIN7_bm;
 				break;
 			}
-			
-			
-		
-            if((st.counter.x.full) == (st.steps.x.full - 1))
+					
+            if((st.counter.x.full) == (st.steps.x.full))
             {
 				st.stepflag.ready &= ~(1 << X_FSTEP_READY);
 				
-					if(st.counter.x.full == 6)
-					{
-						TX_write('+');
-					}
-				
-					
 				if(!(st.stepflag.ready & (1 << X_MSTEP_READY)))
 				{
-					PORTA.DIRCLR |= PIN2_bm;
 					st.stepflag.line &= ~(1 << X_LINE_READY);
 					st.stepflag.line |= (1 << X_LINE_EXE);
 					TCB0.CTRLB &= ~TCB_CCMPEN_bm;
-					
 				}
             }
             else
@@ -134,20 +124,18 @@ ISR(TCB0_INT_vect) //TCB0 vector
             switch(st.direction.x_micro)
             {
 	            case(pos_dir):
-					PORTC.OUT |= PIN3_bm;
+					PORTD.OUT |= PIN7_bm;
 	            break;
 				case(neg_dir):
-					PORTC.OUT &= ~PIN3_bm;
+					PORTD.OUT &= ~PIN7_bm;
 	            break;
             }
                 
-			if((st.counter.x.micro) == (st.steps.x.micro - 1))
+			if((st.counter.x.micro) == (st.steps.x.micro))
 			{   
 				st.stepflag.ready &= ~(1 << X_MSTEP_READY);
-				
 				if(!(st.stepflag.ready & (1 << X_FSTEP_READY)))
 				{	
-					PORTA.DIRCLR |= PIN2_bm;
 					st.stepflag.line &= ~(1 << X_LINE_READY);
 					st.stepflag.line |= (1 << X_LINE_EXE);
 					TCB0.CTRLB &= ~TCB_CCMPEN_bm;
@@ -160,7 +148,7 @@ ISR(TCB0_INT_vect) //TCB0 vector
 		}
 	}
 	
-	if(st.stepflag.line ==  56)
+	else if(st.stepflag.line ==  56)
 	{	
 		currentState.blockFinished = true;
 	}
@@ -174,17 +162,15 @@ ISR(TCB1_INT_vect) //TCB1 vector
 	 {
 		if(st.stepflag.ready & (1 << Y_FSTEP_READY))
 		{
-			 PORTA.OUT |= (st.direction.y_full << 5);
-			 
-			 switch(st.direction.y_full)
-			 {
-				 case(pos_dir):
-				 PORTA.OUT |= PIN5_bm;
-				 break;
-				 case(neg_dir):
-				 PORTA.OUT &= ~PIN5_bm;
-				 break;
-			 }
+			switch(st.direction.y_full)
+			{
+				case(pos_dir):
+				PORTC.OUT |= PIN6_bm;
+				break;
+				case(neg_dir):
+				PORTC.OUT &= ~PIN6_bm;
+				break;
+			}
 		 
 			if((st.counter.y.full) == (st.steps.y.full - 1))
 			{
@@ -192,14 +178,13 @@ ISR(TCB1_INT_vect) //TCB1 vector
 				
 				if(!(st.stepflag.ready & (1 << Y_MSTEP_READY)))
 				{
-					PORTA.DIRCLR |= PIN3_bm;
 					st.stepflag.line &= ~(1 << Y_LINE_READY);
 					st.stepflag.line |= (1 << Y_LINE_EXE);
 					TCB1.CTRLB &= ~TCB_CCMPEN_bm;
 				}
 			}
 			else
-			 {
+			{
 				st.counter.y.full++;
 			}
 		}
@@ -208,10 +193,10 @@ ISR(TCB1_INT_vect) //TCB1 vector
 			switch(st.direction.y_micro)
 			{
 				case(pos_dir):
-				PORTA.OUT |= PIN5_bm;
+				PORTC.OUT |= PIN6_bm;
 				break;
 				case(neg_dir):
-				PORTA.OUT &= ~PIN5_bm;
+				PORTC.OUT &= ~PIN5_bm;
 				break;
 			}
 		 
@@ -221,7 +206,6 @@ ISR(TCB1_INT_vect) //TCB1 vector
 				
 				if(!(st.stepflag.ready & (1 << Y_FSTEP_READY)))
 				{
-					PORTA.DIRCLR |= PIN3_bm;
 					st.stepflag.line &= ~(1 << Y_LINE_READY);
 					st.stepflag.line |= (1 << Y_LINE_EXE);
 					TCB1.CTRLB &= ~TCB_CCMPEN_bm;
@@ -234,98 +218,12 @@ ISR(TCB1_INT_vect) //TCB1 vector
 		}
 	}
 	
-	if(st.stepflag.line  ==  56)
+	else if(st.stepflag.line  ==  56)
 	{	
 		currentState.blockFinished = true;
-		return;
 	}
 }
 
-/*ISR(TIMER2_COMPB_vect) //TCB2 vector
-{   
-    if(st.stepflag.line & (1 << Z_LINE_READY))
-    {
-        switch(st.stepflag.ready)
-        {
-            case((1 << Z_FSTEP_READY)):
-                    
-                PORTC.DIR |= PIN0_bm;
-                PORTA.DIR |= (st.direction.z.full << PIN6);
-        
-                if((st.counter.z.full) == (st.step.z.full - 1))
-                {
-                    st.stepflag.ready &= ~(1 << Z_FSTEP_READY);
-                    PORTC.DIR &= ~PIN0_bm; //clear PC0 as output when line is done
-          
-                    return;
-                }
-                else
-                {
-                    st.counter.z.full++;
-                }
-                break;
-                    
-            case((1 << Z_MSTEP_READY)):
-                
-                PORTA.DIR |= PIN0_bm;
-                PORTA.DIR |= (st.direction.z.micro << PIN6);
-                
-                if((st.counter.z.micro) == (st.step.z.micro - 1))
-                {   
-                    st.stepflag.ready &= ~(1 << Z_MSTEP_READY);
-                    PORTC.DIR &= ~PIN0_bm; //clear PC0 as output when line is done
-          
-                    return;
-                }
-                else
-                {
-                    st.counter.z.micro++;
-                }
-                break;
-                
-            case((1 << Z_LINE_RET)):
-                
-                if(st.stepflag.ret & (1 << Z_FSTEP_RET))
-                {    
-                    PORTA.DIR |= PIN0_bm;
-                    PORTA.DIR ^= (st.direction.z.full << PIN6);
-                
-                    if((st.counter.z.full) == (st.step.z.full_ret))
-                    {
-                        PORTA.DIR &= ~PIN0_bm;
-                        st.stepflag.ret &= ~(1 << Z_FSTEP_RET);
-                        
-                        return;
-                    }
-                    else
-                    {
-                        st.counter.z.full--;
-                    }
-                }
-                
-                else if(st.stepflag.ret & (1 << Z_MSTEP_RET))
-                {    
-                    PORTA.DIR |= PIN0_bm;
-                    PORTA.DIR ^= (st.direction.z.micro << PIN6);
-                
-                    if((st.counter.z.micro) == (st.step.z.micro_ret))
-                    {
-                        PORTA.DIR &= ~PIN0_bm;
-                        st.stepflag.ret &= ~(1 << Z_MSTEP_RET);
-                        
-                        return;
-                    }
-                    else
-                    {
-                        st.counter.z.micro--;
-                    }
-                }
-                break;
-        }
-    }
-    
-    TCB2.INTFLAGS = TCB_CAPT_bm;// clear interrupt flag
-}*/
 
 StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 {
@@ -333,22 +231,10 @@ StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 	switch(coordmode)
 	{
 		case(absolute):
-			if(steps.full != laststeps.full)
-			{
-				temp.full = steps.full - laststeps.full;
-			}
-			else
-			{
-				temp.full = 0;
-			}
-			if(steps.micro != laststeps.micro)
-			{
-				temp.micro = steps.micro - laststeps.micro;
-			}
-			else
-			{
-				temp.micro = 0;
-			}
+			
+			temp.full = steps.full - laststeps.full;
+			temp.micro = steps.micro - laststeps.micro;
+			
 			return temp;
 		break;
 		
@@ -390,9 +276,9 @@ void FeedRateCalc(uint16_t speed)
 {
 	if(speed > 0)
 	{
-		uint8_t per;
-		float comp;
-		float temp;
+		uint8_t per = 0;
+		uint16_t comp = 0;
+		uint16_t temp = 0;
 	
 		if(speed > 778)
 		{
@@ -405,9 +291,8 @@ void FeedRateCalc(uint16_t speed)
 		for(uint8_t i = 0; pow(2,i) <= 1024; i++)
 		{
 			comp /= pow(2,i);
-			comp = floor(comp); 
 		
-			if((comp <= 255) && (i != 9 || i != 5 || i != 7))
+			if((comp <= 255) && !(i == 5 || i == 7 || i == 9))
 			{
 				per = comp;
 				prescale_select(i);
@@ -417,10 +302,19 @@ void FeedRateCalc(uint16_t speed)
 			comp = temp;
 		}
 	}
-	else
-	{
-		prescale_select(10);
-	}
+	prescale_select(10);
+	return;
+}
+
+void PerSelect(uint8_t per)
+{
+	uint8_t pulse = floor(per/2);
+	TCB0.CNT = 0;
+	TCB0.CCMPL = per;
+	TCB0.CCMPH = pulse;
+	TCB1.CNT = 0;
+	TCB1.CCMPL = per;
+	TCB1.CCMPH = pulse;
 }	
 
 void stepper_TCB_init(void)
@@ -441,34 +335,20 @@ void stepper_TCB_init(void)
 	TCB1.CCMPH = 0x80;
 	
 	//enable TCB2
-	TCB2.CTRLA = TCB_CLKSEL_CLKTCA_gc;
-	TCB2.CTRLB |= TCB_CNTMODE_PWM8_gc;
-	TCB2.CCMP = 0x80FF;
+// 	TCB2.CTRLA = TCB_CLKSEL_CLKTCA_gc;
+// 	TCB2.CTRLB |= TCB_CNTMODE_PWM8_gc;
+// 	TCB2.CCMP = 0x80FF;
 
-	PORTA.DIRSET |= PIN7_bm;
-	PORTC.DIRSET |= PIN3_bm;
-	st.stepflag.line = 56;
-	st.stepflag.ready = 0;
-	st.steps.x.full = 0;
-	st.steps.x.micro = 0;
-	st.last_pos.x.full = 0;
-	st.last_pos.x.micro = 0;
-}
-
-void PerSelect(uint8_t per)
-{
-	uint8_t pulse = floor(per/2);
+	PORTD.DIRSET |= PIN7_bm;
+	PORTC.DIRSET |= PIN6_bm;
 	
-	TCB0.CCMPL = per;
-	TCB0.CCMPH = pulse;
-	TCB1.CCMPL = per;
-	TCB1.CCMPH = pulse;
+	st.stepflag.line = 56;
 }
 
 void prescale_select(uint8_t sel)
 {
-	TCA0.SINGLE.PER = 255;
-	
+	TCA0.SINGLE.PER |= 255;
+	TCA0.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
 	switch (sel)
 	{
 		case(0):
@@ -491,6 +371,7 @@ void prescale_select(uint8_t sel)
 		break;
 		case(8):
 			TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV256_gc;
+		break;
 		case(10):
 			TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1024_gc;
 		break;
