@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="4df5cb38-aabf-401c-8693-a2e95e783a86" name="Default Changelist" comment="" />
+    <list default="true" id="4df5cb38-aabf-401c-8693-a2e95e783a86" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/PC.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PC.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Phyton Gerber Encoder/KeyboardInput.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Phyton Gerber Encoder/Serialkonsoll.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Phyton Gerber Encoder/serialRun.py" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
