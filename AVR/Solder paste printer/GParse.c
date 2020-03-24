@@ -5,6 +5,7 @@
  *  Author: mikda
  */ 
 
+
 #include "Header.h"
 
 //Will return true when a character should be ignored
@@ -29,6 +30,12 @@ gc_block currentBlock;
 uint8_t wordIndex = 0;
 bool freshBlock = true;				// True if currentblock contains no new info
 char currentWord[MAX_WORD_SIZE];
+
+int* selectedAxis;
+Vector3 axisOffset;
+Vector3 localCoordSystem;
+Vector3 workCoordSystems[6];
+uint8_t selWCS = 0;
 
 ReturnCodes ParseStream(){
 	static bool readyBlock = false;
@@ -60,25 +67,50 @@ ReturnCodes ParseStream(){
 	
 	//Detect line end
 	if ((nextChar == '\r' || nextChar == '\n')){
-		
+
 		if(ParseWord() == NONE){
 			freshBlock = false;
 		}
 		wordIndex = 0;	
+
 		if(freshBlock == false){
 			colons = 0;
 			freshBlock = true;
 			
-			//Push the block into buffer unless it is full
-			readyBlock = true;
-			if(BlockBufferAvailable() == BUFFER_FULL){
-				ReportEvent(BUFFER_FULL, 'B');
-				return BUFFER_FULL;
+			//Check if it is an offset block
+			if (currentBlock.motion == Offset_WCS)
+			{
+				workCoordSystems[selWCS].x = currentBlock.pos.x.full;
+				workCoordSystems[selWCS].y = currentBlock.pos.y.full;
+				workCoordSystems[selWCS].z = currentBlock.pos.z.full;
+				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
+				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
+				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
+			} else if (currentBlock.motion == Offset_posReg)
+			{
+				axisOffset.x = currentBlock.pos.x.full;
+				axisOffset.y = currentBlock.pos.y.full;
+				axisOffset.z = currentBlock.pos.z.full;
+			} else if (currentBlock.motion == Offset_LCS)
+			{
+				localCoordSystem.x = currentBlock.pos.x.full;
+				localCoordSystem.y = currentBlock.pos.y.full;
+				localCoordSystem.z = currentBlock.pos.z.full;
+				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
+				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
+				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
 			} else {
-				WriteBlockBuffer(currentBlock);
-				readyBlock = false;
+				//Push the block into buffer unless it is full
+				readyBlock = true;
+				if(BlockBufferAvailable() == BUFFER_FULL){
+					ReportEvent(BUFFER_FULL, 'B');
+					return BUFFER_FULL;
+				} else {
+					WriteBlockBuffer(currentBlock);
+					readyBlock = false;
+				}
 			}
-
+		
 			ReportEvent(NEW_BLOCK, 0);
 			return NEW_BLOCK;
 		}
@@ -193,6 +225,26 @@ ReturnCodes ParseWord(){
 						currentBlock.dwellTime = parameter;
 						break;
 					}
+					case 10: {
+						//Write to current WCS
+						currentBlock.motion = Offset_WCS;
+						break;
+					}
+					case 17: {
+						//XY plane selected
+						selectedAxis = &axisOffset.z;
+						break;
+					}
+					case 18: {
+						//ZX plane selected
+						selectedAxis = &axisOffset.y;
+						break;
+					}
+					case 19: {
+						//YZ plane selected
+						selectedAxis = &axisOffset.x;
+						break;
+					}
 					case 20: {
 						currentBlock.coordinateUnit = Inch;
 						break;
@@ -203,6 +255,42 @@ ReturnCodes ParseWord(){
 					}
 					case 28: {
 						currentBlock.motion = Home;
+						break;
+					}
+					case 45: {
+						//Axis offset +1
+						*selectedAxis++;
+						break;
+					}
+					case 46: {
+						//Axis offset -1
+						*selectedAxis--;
+						break;
+					}
+					case 47: {
+						//Axis offset +2
+						*selectedAxis += 2;
+						break;
+					}
+					case 48: {
+						//Axis offset -2
+						*selectedAxis -= 2;
+						break;
+					}
+					case 50: {
+						//Position register offset
+						currentBlock.motion = Offset_posReg;
+						break;
+					}
+					case 52: {
+						//Local coordinate system
+						currentBlock.motion = Offset_LCS;
+						break;
+					}
+					case 54: case 55: case 56: case 57: case 58: case 59: {
+						//Work coordinate system
+						selWCS = num - 54;
+						currentBlock.motion = Offset_LCS;	//Set to LCS to recalculate axisOffset
 						break;
 					}
 					case 90: {
@@ -220,29 +308,35 @@ ReturnCodes ParseWord(){
 			case 'I':{
 				//Arc center X
 				currentBlock.arcCentre.x = Metric2Step(val);
+				currentBlock.arcCentre.x.full += axisOffset.x;
 				break;	
 			}
 			case 'J':{
 				//Arc center Y
 				currentBlock.arcCentre.y = Metric2Step(val);
+				currentBlock.arcCentre.y.full += axisOffset.y;
 				break;
 			}
 			case 'K':{
 				//Arc center Z
 				currentBlock.arcCentre.z = Metric2Step(val);
+				currentBlock.arcCentre.z.full += axisOffset.z;
 				break;	
 			}
 			case 'M':{
 				//Machine commands
 				switch(num){
 					case 0: {
-						//Compulsory stop
-						currentBlock.motion = Stop;
+						//Compulsory stop (Pause)
+						currentBlock.motion = Pause;
 						break;
 					}
 					case 1: {
-						//Optional stop
-						currentBlock.motion = Stop;
+						//Optional stop (Pause)
+						if (OPTIONAL_STOP)
+						{
+							currentBlock.motion = Pause;
+						}
 						break;
 					}
 					case 2: {
@@ -296,16 +390,19 @@ ReturnCodes ParseWord(){
 			case 'X':{
 				//Position X
 				currentBlock.pos.x = Metric2Step(val);
+				currentBlock.pos.x.full += axisOffset.x;
 				break;
 			}
 			case 'Y':{
 				//Position Y
 				currentBlock.pos.y = Metric2Step(val);
+				currentBlock.pos.y.full += axisOffset.y;
 				break;
 			}
 			case 'Z':{
 				//Position Z
 				currentBlock.pos.z = Metric2Step(val);
+				currentBlock.pos.z.full += axisOffset.z;
 				break;
 			}
 			default:{
@@ -323,12 +420,19 @@ void InitParser(){
 	blockBufferHead = 0;
 	blockBufferTail = 0;
 	
+	//Reset offset
+	workCoordSystems[0].x = STD_OFFSET_X;
+	workCoordSystems[0].y = STD_OFFSET_Y;
+	workCoordSystems[0].z = STD_OFFSET_Z;
+	selWCS = 0;
+	axisOffset = workCoordSystems[0];
+
 	//Set default block values
-	currentBlock.pos.x.full = 0;
+	currentBlock.pos.x.full = STD_OFFSET_X;
 	currentBlock.pos.x.micro = 0;
-	currentBlock.pos.y.full = 0;
+	currentBlock.pos.y.full = STD_OFFSET_Y;
 	currentBlock.pos.y.micro = 0;
-	currentBlock.pos.z.full = 0;
+	currentBlock.pos.z.full = STD_OFFSET_Z;
 	currentBlock.pos.z.micro = 0;
 	currentBlock.motion = Home;
 	currentBlock.dispenseRate = 0;

@@ -27,6 +27,11 @@
 #define METRIC_STEP_LENGTH 0.01495	//Length of a step in millimeters
 #define INCH_STEP_LENGTH 0.0005886	
 
+//axis offset from edge sensors
+#define STD_OFFSET_X 100
+#define STD_OFFSET_Y 100
+#define STD_OFFSET_Z 10
+
 //G-code
 #define MAX_G_LINE 0
 #define MAX_LINE_SIZE 256
@@ -34,6 +39,7 @@
 #define CMD_X_SIZE 8
 #define CMD_Y_SIZE 8
 #define CMD_Z_SIZE 4
+#define OPTIONAL_STOP true
 
 #define START_CHAR '%'
 #define CMD_RESET '@'

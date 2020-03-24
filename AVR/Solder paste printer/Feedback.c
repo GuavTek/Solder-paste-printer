@@ -60,6 +60,10 @@ void ReportEvent(ReturnCodes code, int num){
 			TX_write(num);
 			break;
 		}
+		case PAUSED: {
+			TX_write('P');
+			break;
+		}
 		default: {
 			return;
 		}

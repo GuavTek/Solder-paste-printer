@@ -133,11 +133,18 @@ void GetNewBlock(){
 			StartTimer(theCurrentBlock.dwellTime, EndDwell);
 			break;
 		}
+		case Pause: {
+			currentState.noError = false;	//Not actually an error, but procedure is the same
+			ReportEvent(PAUSED, 0);
+			currentState.blockFinished = true;
+			return;
+		}
 		case Stop: {
 			currentState.abortPrint = true;
 			ReportEvent(STOP_DETECTED, 0);
 			break;
 		}
+		default: break;
 	}
 	currentState.blockFinished = false;
 }

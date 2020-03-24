@@ -18,10 +18,11 @@ typedef enum {
 	BUFFER_EMPTY,
 	BUFFER_OVERFLOW,
 	SHORT_WORD,
+	PAUSED,
 	UNEXPECTED_EDGE
 } ReturnCodes;
 
-//Types of motion
+//Types of motion, or rather block type
 enum MotionModes {
 	Rapid_position,
 	Linear_interpolation,
@@ -29,7 +30,11 @@ enum MotionModes {
 	Arc_CCW,
 	Dwell,
 	Home,
-	Stop
+	Stop,
+	Pause,
+	Offset_posReg,
+	Offset_LCS,
+	Offset_WCS
 };
 
 enum CoordUnit {
