@@ -1,10 +1,18 @@
 import keyboard
+import RXTXlib
 
-keys = None
+User_commands = RXTXlib.UserCom()
 
-def keyinp():
+
+def keyinp(inp):
     global keys
-    keys = None
-    keys = keyboard.record()
 
-keyboard.add_hotkey('$', keyinp)
+    if inp.name == 'esc':
+        User_commands('abort')
+
+    elif inp.name == "enter":
+        keys = input()
+        User_commands(keys)
+
+
+int_keyboard = keyboard.on_release(keyinp)

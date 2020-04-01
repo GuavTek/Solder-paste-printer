@@ -9,6 +9,8 @@
 
 st_block st;
 
+uint16_t stepper_line = 0;
+
 /*sets prescaling of the TCA0 clk*/
 void prescale_select(uint8_t sel);
 /*calculates steps.*/
@@ -18,13 +20,16 @@ enum DirSet StepDir(int steps);
 /*sets the period and pulse lenght of TCB PWM on X and Y axis*/ 
 void PerSelect(uint8_t per);
 
+uint16_t current_line(uint16_t new_line, uint16_t last_line);
+
 void PrepStep(void)
 {
+	
 	/*steps get prepped here. calculates the amount of steps according 
 	to how far it has stepped, sets the direction and stores the value 
 	from the current block in last_steps*/
     StepVector3 delta;	  
-    if(st.stepflag.line == 56)
+    if(st.stepflag.line == 56 && currentState.blockFinished == true)
     {
 		
 		delta.x = Delta(theCurrentBlock.pos.x, st.last_pos.x, theCurrentBlock.coordinateMode);
@@ -33,6 +38,9 @@ void PrepStep(void)
 		st.direction.y_full = StepDir(delta.y.full);
 		st.direction.x_micro = StepDir(delta.x.micro);
 		st.direction.y_micro = StepDir(delta.y.micro);
+		st.line_number = current_line(theCurrentBlock.blockNumber, st.line_number);
+		
+		
 		
 		if(!(delta.x.full == 0))
 		{
@@ -81,6 +89,7 @@ void PrepStep(void)
 			TCB1.CTRLB |= TCB_CCMPEN_bm;
 			TCB1.INTCTRL |= TCB_CAPT_bm;
 		}
+		
 	}
 }
 
@@ -379,4 +388,25 @@ void prescale_select(uint8_t sel)
 			TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1024_gc;
 	}
 	TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;
+}
+
+uint16_t current_line(uint16_t new_line, uint16_t last_line)
+{	
+	static uint8_t line_state;
+		
+	if (new_line > last_line && line_state == 1)
+	{
+		TX_write('l');
+		TX_write(last_line);
+		line_state = 0;
+	}
+	
+	if (new_line > last_line)
+	{
+		TX_write('L');
+		TX_write(new_line);
+		last_line = new_line;
+		line_state = 1;
+	}
+	return last_line;
 }

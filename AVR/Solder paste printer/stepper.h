@@ -89,6 +89,7 @@ typedef struct
     st_count    counter;
     st_flag     stepflag;
 	dirAxis		direction;
+	uint16_t	line_number;
 }st_block;
 
 

@@ -1,16 +1,38 @@
 import RXTXlib
-
+import sys
+from KeyInput import int_keyboard
 uart = RXTXlib
 
-data = open("datatest","r")
-RXTXlib.intSerialport()
-
-while 1:
-    uart.commands(uart.keyboard_input)
-    uart.serial_TX(data)
-    uart.mcu_commands_read(uart.serial_RX())
-
+start_trans = False
+uart.intSerialport()
+Usercom = uart.UserCom
+Mcucom = uart.mcuCom()
+thread_index = 0
+thread_dict = {}
 
 
+while True:
 
+    Mcucom(uart.RX_routine())
 
+    if Usercom.user_comflags == "run" and not start_trans:
+        thread_index += 1
+        thread_dict[thread_index] = uart.Serial_routine(thread_id=str(thread_index), name=str(thread_index)+"TX_serial_routine", data=Usercom.data)
+        thread_dict[thread_index].daemon = True
+        thread_dict[thread_index].start()
+        RX_ret = True
+
+    elif Usercom.user_comflags == 'abort':
+        sys.exit()
+
+    elif Usercom.system_break:
+        if not thread_dict[thread_index].is_alive():
+            Usercom.system_break = False
+            start_trans = False
+
+    elif start_trans:
+        if not thread_dict[thread_index].is_alive():
+            RX_ret = False
+            Mcucom.reset()
+            Usercom.reset()
+            Usercom.system_break = False
