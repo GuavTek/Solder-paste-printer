@@ -19,7 +19,9 @@ typedef enum {
 	BUFFER_OVERFLOW,
 	SHORT_WORD,
 	PAUSED,
-	UNEXPECTED_EDGE
+	UNEXPECTED_EDGE,
+	DWELL_FINISHED,
+	NO_CALLBACK
 } ReturnCodes;
 
 //Types of motion, or rather block type

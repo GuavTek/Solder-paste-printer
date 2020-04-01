@@ -126,7 +126,6 @@ void GetNewBlock(){
 		case Arc_CCW:
 		case Home: {
 			PrepStep();
-			StartTimer(200, EndDwell);
 			break;
 		}
 		case Dwell: {
@@ -152,6 +151,8 @@ void GetNewBlock(){
 void EndDwell(){
 	//Alls well that ends dwell
 	currentState.blockFinished = true;
+
+	ReportEvent(DWELL_FINISHED,0);
 }
 
 void InitEndSensors(){

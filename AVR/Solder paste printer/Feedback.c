@@ -64,6 +64,19 @@ void ReportEvent(ReturnCodes code, int num){
 			TX_write('P');
 			break;
 		}
+		case DWELL_FINISHED: {
+			if (!VERBOSE_FEEDBACK)
+			{
+				return;
+			}
+			TX_write('D');
+			break;
+		}
+		case NO_CALLBACK: {
+			TX_write('C');
+			TX_write(num);
+			break;
+		}
 		default: {
 			return;
 		}

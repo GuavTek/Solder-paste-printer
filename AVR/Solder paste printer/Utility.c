@@ -169,7 +169,14 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 }
 
 ISR(RTC_CNT_vect){
-	indexS--;
+	//Clear interrupt flag
+	RTC.INTFLAGS = RTC_CMP_bm;
+
+	if (indexS > 0)
+	{
+		indexS--;
+	}
+	
 	
 	if (indexS > 0)
 	{
@@ -186,9 +193,15 @@ ISR(RTC_CNT_vect){
 	//Set buffer as available again
 	bAvail |= 1<<sortedIndex[indexS];
 
+	//Abort if Callback is unassigned
+	if (*RTC_Callback[sortedIndex[indexS]] == 0)
+	{
+		ReportEvent(NO_CALLBACK,'T');
+		return;
+	}
+
 	//Do something
 	RTC_Callback[sortedIndex[indexS]]();
 
-	//Clear interrupt flag
-	RTC.INTFLAGS = RTC_CMP_bm;
+
 }

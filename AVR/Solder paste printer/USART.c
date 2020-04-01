@@ -81,7 +81,7 @@ uint8_t RX_read()
 		return 0;
 	}
 	
-	if(tail == RX_BUFFERSIZE)
+	if(tail >= RX_BUFFERSIZE)
 	{
 		tail = 0;
 	}
@@ -93,6 +93,7 @@ uint8_t RX_read()
 	if (RX_Count() > 20)
 	{
 		RX_Full = false;
+		USARTn.CTRLA |= USART_DREIE_bm;
 	}
         
 	return data;
@@ -137,7 +138,7 @@ void RX_write()
                 
                 head = rx_head + 1;
     
-                if(rx_head == RX_BUFFERSIZE)
+                if(head >= RX_BUFFERSIZE)
                 {
                     head = 0;
                 }
@@ -154,6 +155,7 @@ void RX_write()
 				if (RX_Count() < 10)
 				{
 					RX_Full = true;
+					USARTn.CTRLA |= USART_DREIE_bm;
 				}
             }
     }
@@ -195,7 +197,7 @@ void TX_write(uint8_t data)
 {
     uint8_t head = tx_head + 1;
     
-    if(head == TX_BUFFERSIZE)
+    if(head >= TX_BUFFERSIZE)
     {  
         head = 0;
     }

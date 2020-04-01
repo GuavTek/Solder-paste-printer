@@ -30,6 +30,7 @@ gc_block currentBlock;
 uint8_t wordIndex = 0;
 bool freshBlock = true;				// True if currentblock contains no new info
 char currentWord[MAX_WORD_SIZE];
+uint8_t modalPos;					//Buffer position of the last modal command
 
 int* selectedAxis;
 Vector3 axisOffset;
@@ -86,11 +87,17 @@ ReturnCodes ParseStream(){
 				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
 				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
 				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
+
+				//Reset to last modal block
+				currentBlock = blockBuffer[modalPos];
 			} else if (currentBlock.motion == Offset_posReg)
 			{
 				axisOffset.x = currentBlock.pos.x.full;
 				axisOffset.y = currentBlock.pos.y.full;
 				axisOffset.z = currentBlock.pos.z.full;
+
+				//Reset to last modal block
+				currentBlock = blockBuffer[modalPos];
 			} else if (currentBlock.motion == Offset_LCS)
 			{
 				localCoordSystem.x = currentBlock.pos.x.full;
@@ -99,6 +106,9 @@ ReturnCodes ParseStream(){
 				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
 				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
 				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
+
+				//Reset to last modal block
+				currentBlock = blockBuffer[modalPos];
 			} else {
 				//Push the block into buffer unless it is full
 				readyBlock = true;
@@ -259,12 +269,12 @@ ReturnCodes ParseWord(){
 					}
 					case 45: {
 						//Axis offset +1
-						*selectedAxis++;
+						*selectedAxis += 1;
 						break;
 					}
 					case 46: {
 						//Axis offset -1
-						*selectedAxis--;
+						*selectedAxis -= 1;
 						break;
 					}
 					case 47: {
@@ -517,6 +527,7 @@ void WriteBlockBuffer(gc_block block){
 	{
 		blockBufferHead = 0;
 	}
+	modalPos = blockBufferHead;
 
 	blockBuffer[blockBufferHead] = block;
 }
