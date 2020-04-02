@@ -255,7 +255,7 @@ def intSerialport():
         pp.pprint("Device: " + y.device)
         pp.pprint("Desc: " + y.description)
         pp.pprint("HWID: " + y.hwid)
-        pp.pprint("\n")
+        print('\n')
 
     # connect to desired device
     if "Curiosity Virtual COM Port (COM6)" in y.description:
@@ -266,6 +266,7 @@ def intSerialport():
         pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
         pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
         pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
+        print('\n')
 
 
     else:
@@ -304,13 +305,15 @@ def TX_routine(data):
         while (ser.is_open == False):
             ser.open()
         for x in data:
-            for y in x:
-                TX = bytes(y, 'utf-8')
-                if (TX != b' ' or TX != ''):
-                    ser.write(TX)
-                    if User_commands.system_break:
-                        return
-                    MCU_commands.comflag_state(y)
+
+            TX = bytes(x, 'utf-8')
+            if (TX != b' ' or TX != ''):
+                ser.write(TX)
+
+                if User_commands.system_break:
+                    return
+                MCU_commands.comflag_state(x)
+        break
 
 
 def load_file():
