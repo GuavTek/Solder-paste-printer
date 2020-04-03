@@ -14,6 +14,7 @@ void ReportEvent(ReturnCodes code, int num){
 		return;
 	}
 	
+	//Indicate that the print has halted
 	if (!currentState.noError)
 	{
 		TX_write('!');
@@ -27,17 +28,17 @@ void ReportEvent(ReturnCodes code, int num){
 		} 
 		case UNEXPECTED_EDGE: {
 			TX_write('E');
-			TX_write(num);
+			TX_write(num);	//The axis which collided
 			break;
 		}
 		case BUFFER_OVERFLOW: {
 			TX_write('O');
-			TX_write(num);
+			TX_write(num);	//The buffer that overflowed
 			break;
 		}
 		case BUFFER_FULL: {
 			TX_write('F');
-			TX_write(num);
+			TX_write(num);	//The buffer which is full
 			break;
 		} 
 		case BUFFER_AVAILABLE: {
@@ -57,7 +58,7 @@ void ReportEvent(ReturnCodes code, int num){
 		} 
 		case SHORT_WORD: {
 			TX_write('H');
-			TX_write(num);
+			TX_write(num);	//The character which was received
 			break;
 		}
 		case PAUSED: {

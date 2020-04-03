@@ -14,9 +14,9 @@ gc_block theCurrentBlock;
 //The function the RTC calls when triggered
 //Is set by StartDwell
 void (*RTC_Callback[8])(void);
-uint16_t RTC_Times[8];
-uint8_t sortedIndex[8];
-uint8_t indexS = 0;
+uint16_t RTC_Times[8];			//The time the function should be called
+uint8_t sortedIndex[8];			//The order the functions should be called
+uint8_t indexS = 0;				//The index of sortedIndex
 uint8_t bAvail = 0xff;			//Bitmask indicates buffer availability
 
 uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar){
@@ -32,7 +32,8 @@ uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar){
 			return i;
 		}
 	}
-	return 0;
+	
+	return 0;	//did not find char
 }
 
 void Slice(const char original[], char sliced[], uint8_t startIndex, uint8_t stopIndex){
@@ -49,7 +50,7 @@ void Slice(const char original[], char sliced[], uint8_t startIndex, uint8_t sto
 		return;
 	}
 	
-	
+	//Insert slice
 	for(uint8_t i = 0; i < length; i++){
 		sliced[i] = original[startIndex + i];
 	}
@@ -72,10 +73,19 @@ uint8_t StringLength(const char strng[], uint8_t startIndex){
 
 StepCount Metric2Step(float millimeters){
 	StepCount newStep;
+
+	//Convert to number of steps
 	float tempLength = millimeters / METRIC_STEP_LENGTH;
+	
+	//Save full-steps
 	newStep.full = round(tempLength);
+	
+	//Subtract full-steps
 	tempLength -= newStep.full;
+
+	//Get micro-steps
 	newStep.micro = round(tempLength * 16);
+	
 	return newStep;
 }
 
@@ -87,9 +97,10 @@ void InitClock(){
 	//Wait for registers to synchronize
 	while(RTC.STATUS > 0){}
 	
-	//Use internal crystal
+	//Use internal crystal in 1.024kHz mode
 	RTC.CLKSEL = RTC_CLKSEL_INT1K_gc;
 	
+	//Set period
 	RTC.PER = 0xFFFF;
 	
 	//Debug enable
@@ -177,7 +188,7 @@ ISR(RTC_CNT_vect){
 		indexS--;
 	}
 	
-	
+	//Check if there are more functions waiting
 	if (indexS > 0)
 	{
 		//Set next interrupt time
@@ -190,7 +201,7 @@ ISR(RTC_CNT_vect){
 		RTC.INTCTRL &= ~RTC_CMP_bm;
 	}
 
-	//Set buffer as available again
+	//Set buffer position as available again
 	bAvail |= 1<<sortedIndex[indexS];
 
 	//Abort if Callback is unassigned

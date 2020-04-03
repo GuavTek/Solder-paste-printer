@@ -9,6 +9,7 @@
 #ifndef HEADER_H_
 #define HEADER_H_
 
+//Include all the things
 #include <avr/io.h>
 #include <stdint.h>
 #include <stdlib.h>

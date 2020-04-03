@@ -22,7 +22,7 @@ void EndDwell();
 //Blink led
 void Blinky(void);
 
-uint16_t timer = 1000;
+uint16_t timer = 300;
 
 int main(void)
 {
@@ -45,13 +45,11 @@ int main(void)
 			if (RX_read() == START_CHAR)
 			{
 				Print();
-				timer = 1000;
+				timer = 300;
 				currentState.state = idle;
 			}
 		}
 		
-		//TX_Jumpstart();
-
     }
 }
 
@@ -64,12 +62,13 @@ void Blinky(){
 void Print(void) {
 	InitParser();
 	TX_write('k');
+	TX_write('\n');
+	TX_write('\r');
 	currentState.state = printing;
 	currentState.abortPrint = false;
 	currentState.blockFinished = true;
 	currentState.noError = true;
-	timer = 300;
-	PORTF.OUTSET = PIN5_bm;
+	timer = 1000;
 	
 	while(1){
 		if (currentState.noError)
@@ -82,7 +81,6 @@ void Print(void) {
 		{
 			//Error state
 		}
-		//TX_Jumpstart();
 		
 		if (currentState.statusDump)
 		{
@@ -114,11 +112,13 @@ void GetNewBlock(){
 	
 	currentState.task = theCurrentBlock.motion;
 	
+	//Set dispense state
 	Dispense(theCurrentBlock.dispenseEnable);
 	
-	
+	//Adjust movement speed
 	FeedRateCalc(theCurrentBlock.moveSpeed);
 	
+	//Execute block command
 	switch(theCurrentBlock.motion){
 		case Linear_interpolation:
 		case Rapid_position:
@@ -156,11 +156,11 @@ void EndDwell(){
 }
 
 void InitEndSensors(){
-	//To do: find triggered level (PORT_INVEN if high)
-	PORTC.PIN5CTRL = PORT_ISC_LEVEL_gc;
-	PORTD.PIN1CTRL = PORT_ISC_LEVEL_gc;
-	PORTD.PIN2CTRL = PORT_ISC_LEVEL_gc;
-	PORTD.PIN5CTRL = PORT_ISC_LEVEL_gc;
+	//To do: find triggered level
+	PORTC.PIN5CTRL = PORT_ISC_BOTHEDGES_gc;
+	PORTD.PIN1CTRL = PORT_ISC_BOTHEDGES_gc;
+	PORTD.PIN2CTRL = PORT_ISC_BOTHEDGES_gc;
+	PORTD.PIN5CTRL = PORT_ISC_BOTHEDGES_gc;
 }
 
 ISR(PORTC_PORT_vect){
@@ -168,13 +168,13 @@ ISR(PORTC_PORT_vect){
 	{
 		//Y-axis end detected
 		//Stop Y motion
-		//Step 1 position back/or until level goes back
+		//Step back until no longer triggered
 		
 		//Log unexpected end trigger, and halt printing
 		if (currentState.task != Home)
 		{
 			currentState.noError = false;
-			ReportStatus(UNEXPECTED_EDGE, 'Y');
+			ReportEvent(UNEXPECTED_EDGE, 'Y');
 		}
 		PORTC.INTFLAGS |= PIN5_bm;
 	}
@@ -189,7 +189,7 @@ ISR(PORTD_PORT_vect){
 		if (currentState.task != Home)
 		{
 			currentState.noError = false;
-			ReportStatus(UNEXPECTED_EDGE, 'X');
+			ReportEvent(UNEXPECTED_EDGE, 'X');
 		}
 		PORTD.INTFLAGS |= PIN2_bm;
 	}
@@ -201,7 +201,7 @@ ISR(PORTD_PORT_vect){
 		if (currentState.task != Home)
 		{
 			currentState.noError = false;
-			ReportStatus(UNEXPECTED_EDGE, 'Z');
+			ReportEvent(UNEXPECTED_EDGE, 'Z');
 		}
 		PORTD.INTFLAGS |= PIN5_bm;
 	}
