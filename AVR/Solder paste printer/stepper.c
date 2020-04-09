@@ -104,11 +104,11 @@ ISR(TCB0_INT_vect) //TCB0 vector
 			switch(st.direction.x_full)
 			{
 				case(pos_dir):
-					PORTD.OUT |= PIN7_bm;
+					PORTC.OUT |= PIN2_bm;
 				break;
 				
 				case(neg_dir):
-					PORTD.OUT &= ~PIN7_bm;
+					PORTC.OUT &= ~PIN2_bm;
 				break;
 			}
 					
@@ -133,10 +133,10 @@ ISR(TCB0_INT_vect) //TCB0 vector
             switch(st.direction.x_micro)
             {
 	            case(pos_dir):
-					PORTD.OUT |= PIN7_bm;
+					PORTC.OUT |= PIN2_bm;
 	            break;
 				case(neg_dir):
-					PORTD.OUT &= ~PIN7_bm;
+					PORTC.OUT &= ~PIN2_bm;
 	            break;
             }
                 
@@ -174,10 +174,10 @@ ISR(TCB1_INT_vect) //TCB1 vector
 			switch(st.direction.y_full)
 			{
 				case(pos_dir):
-				PORTC.OUT |= PIN6_bm;
+				PORTA.OUT |= PIN5_bm;
 				break;
 				case(neg_dir):
-				PORTC.OUT &= ~PIN6_bm;
+				PORTA.OUT &= ~PIN5_bm;
 				break;
 			}
 		 
@@ -202,10 +202,10 @@ ISR(TCB1_INT_vect) //TCB1 vector
 			switch(st.direction.y_micro)
 			{
 				case(pos_dir):
-				PORTC.OUT |= PIN6_bm;
+				PORTA.OUT |= PIN5_bm;
 				break;
 				case(neg_dir):
-				PORTC.OUT &= ~PIN5_bm;
+				PORTA.OUT &= ~PIN5_bm;
 				break;
 			}
 		 
@@ -348,8 +348,8 @@ void stepper_TCB_init(void)
 // 	TCB2.CTRLB |= TCB_CNTMODE_PWM8_gc;
 // 	TCB2.CCMP = 0x80FF;
 
-	PORTD.DIRSET |= PIN7_bm;
-	PORTC.DIRSET |= PIN6_bm;
+	PORTC.DIRSET |= PIN2_bm;
+	PORTA.DIRSET |= PIN5_bm;
 	
 	st.stepflag.line = 56;
 }
