@@ -24,19 +24,19 @@ uint8_t blockBufferHead = 0;
 uint8_t blockBufferTail = 0;
 gc_block blockBuffer[BLOCK_BUFFER_SIZE];
 
-uint8_t colons;	//For ignoring comments
+uint8_t colons;						//For ignoring comments
 
-gc_block currentBlock;
-uint8_t wordIndex = 0;
-bool freshBlock = true;				// True if currentblock contains no new info
-char currentWord[MAX_WORD_SIZE];
+gc_block currentBlock;				//The block being edited, retains previous data
+uint8_t wordIndex = 0;				//How long the word being parsed is now
+bool freshBlock = true;				//True if currentblock contains no new info
+char currentWord[MAX_WORD_SIZE];	//Buffer for the word being parsed
 uint8_t modalPos;					//Buffer position of the last modal command
 
-int* selectedAxis;
-Vector3 axisOffset;
-Vector3 localCoordSystem;
-Vector3 workCoordSystems[6];
-uint8_t selWCS = 0;
+int* selectedAxis;					//Used to increment axisOffset
+Vector3 axisOffset;					//Current offset
+Vector3 localCoordSystem;			//Offset relative to current WCS
+Vector3 workCoordSystems[6];		//WCS, set of reference points
+uint8_t selWCS = 0;					//Currently selected WCS
 
 ReturnCodes ParseStream(){
 	static bool readyBlock = false;
@@ -81,9 +81,12 @@ ReturnCodes ParseStream(){
 			//Check if it is an offset block
 			if (currentBlock.motion == Offset_WCS)
 			{
+				//Set work coordinates
 				workCoordSystems[selWCS].x = currentBlock.pos.x.full;
 				workCoordSystems[selWCS].y = currentBlock.pos.y.full;
 				workCoordSystems[selWCS].z = currentBlock.pos.z.full;
+
+				//Set current offset
 				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
 				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
 				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
@@ -92,6 +95,7 @@ ReturnCodes ParseStream(){
 				currentBlock = blockBuffer[modalPos];
 			} else if (currentBlock.motion == Offset_posReg)
 			{
+				//Set current offset
 				axisOffset.x = currentBlock.pos.x.full;
 				axisOffset.y = currentBlock.pos.y.full;
 				axisOffset.z = currentBlock.pos.z.full;
@@ -100,9 +104,12 @@ ReturnCodes ParseStream(){
 				currentBlock = blockBuffer[modalPos];
 			} else if (currentBlock.motion == Offset_LCS)
 			{
+				//Set local offset
 				localCoordSystem.x = currentBlock.pos.x.full;
 				localCoordSystem.y = currentBlock.pos.y.full;
 				localCoordSystem.z = currentBlock.pos.z.full;
+
+				//Set current offset
 				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
 				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
 				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
@@ -126,12 +133,6 @@ ReturnCodes ParseStream(){
 		}
 	}
 	
-	//Detect word overflow
-	if (wordIndex >= (MAX_WORD_SIZE - 1))
-	{
-		ReportEvent(BUFFER_OVERFLOW, 'W');
-	}
-	
 	//Checks if a new word has started
 	if (WordEnd(nextChar)){
 		if(ParseWord() == NONE){
@@ -140,9 +141,14 @@ ReturnCodes ParseStream(){
 		wordIndex = 0;
 	}
 	
-	currentWord[wordIndex] = nextChar;
-	wordIndex++;
-
+	//Detect word overflow
+	if (wordIndex >= (MAX_WORD_SIZE - 1))
+	{
+		ReportEvent(BUFFER_OVERFLOW, 'W');
+	} else {
+		currentWord[wordIndex] = nextChar;
+		wordIndex++;
+	}
 	return NONE;
 }
 
@@ -231,6 +237,7 @@ ReturnCodes ParseWord(){
 						break;
 					}
 					case 4: {
+						//Usually non-modal
 						currentBlock.motion = Dwell;
 						currentBlock.dwellTime = parameter;
 						break;
@@ -264,6 +271,7 @@ ReturnCodes ParseWord(){
 						break;
 					}
 					case 28: {
+						//Usually non-modal
 						currentBlock.motion = Home;
 						break;
 					}

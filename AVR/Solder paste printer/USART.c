@@ -25,7 +25,7 @@ void USART_INIT(uint8_t portnum, uint32_t baudrate){
 	//Division needed to get desired baudrate
 	uint16_t baudDiv = (4 * fCLK_PER / baudrate);
 	
-	//Enable interrupts RX/TX complete
+	//Enable interrupts TX empty, RX complete
 	uint8_t RA = USART_DREIE_bm | USART_RXCIE_bm;
 	
 	//Enable tx and rx
@@ -128,10 +128,7 @@ void RX_write()
         default:
             if(rx_data > 0x7F)
             {
-                switch(rx_data); // pick up realtime commands
-                {
-                    
-                }
+                // pick up realtime commands
             }
             else // data that does not contain realtime or system commands
             {
@@ -142,7 +139,8 @@ void RX_write()
                 {
                     head = 0;
                 }
-    
+				
+				//Check if buffer is full
                 if(head != rx_tail)
     			{
         			rx_buffer_data[head] = rx_data;
@@ -276,7 +274,9 @@ void RTX_FLUSH(){
 	USARTn.RXDATAL;
 }
 
+//TX_Jumpstart Depreceated
 void TX_Jumpstart(){
+	//Check if there is data and we are not sending
 	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_DREIE_bm))
 	{
 		//TX_read();
@@ -297,6 +297,5 @@ ISR(USART3_DRE_vect){
 		//Disable interrupt if there is no data to send
 		USARTn.CTRLA &= ~USART_DREIE_bm;
 	}
-	//USARTn.STATUS 
 }
 

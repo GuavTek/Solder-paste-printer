@@ -65,7 +65,7 @@ typedef struct {
 	StepCount z;
 } StepVector3;
 
-typedef struct  {
+typedef struct {
 	int x;
 	int y;
 	int z;
@@ -95,6 +95,7 @@ typedef struct {
 	enum CoordUnit coordinateUnit;
 } gc_block;
 
+//Global variables of what the printer is currently doing
 extern PrinterState currentState;
 extern gc_block theCurrentBlock;
 
