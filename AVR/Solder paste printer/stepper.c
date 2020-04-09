@@ -9,8 +9,6 @@
 
 st_block st;
 
-uint16_t stepper_line = 0;
-
 /*sets prescaling of the TCA0 clk*/
 void prescale_select(uint8_t sel);
 /*calculates steps.*/
@@ -38,6 +36,7 @@ void PrepStep(void)
 		st.direction.y_full = StepDir(delta.y.full);
 		st.direction.x_micro = StepDir(delta.x.micro);
 		st.direction.y_micro = StepDir(delta.y.micro);
+		FeedRateCalc(theCurrentBlock.moveSpeed);
 		st.line_number = current_line(theCurrentBlock.blockNumber, st.line_number);
 		
 		
@@ -112,7 +111,7 @@ ISR(TCB0_INT_vect) //TCB0 vector
 				break;
 			}
 					
-            if((st.counter.x.full) == (st.steps.x.full))
+            if((st.counter.x.full) == (st.steps.x.full - 1))
             {
 				st.stepflag.ready &= ~(1 << X_FSTEP_READY);
 				
@@ -140,7 +139,7 @@ ISR(TCB0_INT_vect) //TCB0 vector
 	            break;
             }
                 
-			if((st.counter.x.micro) == (st.steps.x.micro))
+			if((st.counter.x.micro) == (st.steps.x.micro - 1))
 			{   
 				st.stepflag.ready &= ~(1 << X_MSTEP_READY);
 				if(!(st.stepflag.ready & (1 << X_FSTEP_READY)))
@@ -243,8 +242,6 @@ StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 			
 			temp.full = steps.full - laststeps.full;
 			temp.micro = steps.micro - laststeps.micro;
-			
-			return temp;
 		break;
 		
 		case(incremental):
@@ -258,10 +255,10 @@ StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 			{
 				temp.full = 0;
 				temp.micro = 0;
-				return temp;
 			}
 		break;
 	}
+	return temp;
 }
 
 enum DirSet StepDir(int step)
@@ -282,7 +279,7 @@ enum DirSet StepDir(int step)
 }
 		
 void FeedRateCalc(uint16_t speed)
-{
+{	
 	if(speed > 0)
 	{
 		uint8_t per = 0;
@@ -294,12 +291,11 @@ void FeedRateCalc(uint16_t speed)
 			speed = 778;
 		}
 	
-		temp = METRIC_STEP_LENGTH*(fCLK_PER/speed);
-		comp = temp;
+		temp = round(METRIC_STEP_LENGTH*(fCLK_PER/speed));
 	
 		for(uint8_t i = 0; pow(2,i) <= 1024; i++)
 		{
-			comp /= pow(2,i);
+			comp = round(temp / pow(2,i));
 		
 			if((comp <= 255) && !(i == 5 || i == 7 || i == 9))
 			{
@@ -308,7 +304,6 @@ void FeedRateCalc(uint16_t speed)
 				PerSelect(per);
 				return;		
 			}
-			comp = temp;
 		}
 	}
 	prescale_select(10);
@@ -317,11 +312,9 @@ void FeedRateCalc(uint16_t speed)
 
 void PerSelect(uint8_t per)
 {
-	uint8_t pulse = floor(per/2);
-	TCB0.CNT = 0;
+	uint8_t pulse = round(per/2);
 	TCB0.CCMPL = per;
 	TCB0.CCMPH = pulse;
-	TCB1.CNT = 0;
 	TCB1.CCMPL = per;
 	TCB1.CCMPH = pulse;
 }	
@@ -394,15 +387,15 @@ uint16_t current_line(uint16_t new_line, uint16_t last_line)
 {	
 	static uint8_t line_state;
 		
-	if (new_line > last_line && line_state == 1)
-	{
-		TX_write('l');
-		TX_write(last_line);
-		line_state = 0;
-	}
-	
 	if (new_line > last_line)
 	{
+		if (line_state)
+		{
+			TX_write('l');
+			TX_write(last_line);
+			line_state = 0;
+		}
+		
 		TX_write('L');
 		TX_write(new_line);
 		last_line = new_line;
