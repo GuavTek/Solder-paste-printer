@@ -71,12 +71,17 @@ uint8_t StringLength(const char strng[], uint8_t startIndex){
 	return counter;
 }
 
-StepCount Metric2Step(float millimeters){
+StepCount Length2Step(float length, enum CoordUnit unit){
 	StepCount newStep;
+	float tempLength;
 
 	//Convert to number of steps
-	float tempLength = millimeters / METRIC_STEP_LENGTH;
-	
+	if(unit == millimeter){
+		tempLength = length / METRIC_STEP_LENGTH;
+	} else {
+		tempLength = length / IMPERIAL_STEP_LENGTH;
+	}
+
 	//Save full-steps
 	newStep.full = round(tempLength);
 	

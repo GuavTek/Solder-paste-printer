@@ -52,8 +52,9 @@ ReturnCodes ParseStream(){
 		else
 		{
 			//ReportStatus(BUFFER_AVAILABLE);
-			WriteBlockBuffer(currentBlock);
 			readyBlock = false;
+			WriteBlockBuffer(currentBlock);
+			return NONE;
 		}
 		
 	}
@@ -78,6 +79,14 @@ ReturnCodes ParseStream(){
 			colons = 0;
 			freshBlock = true;
 			
+			//Set position to local zero if homeing
+			if (currentBlock.motion == Home)
+			{
+				currentBlock.pos.x.full = axisOffset.x;
+				currentBlock.pos.y.full = axisOffset.y;
+				currentBlock.pos.z.full = axisOffset.z;
+			}
+
 			//Check if it is an offset block
 			if (currentBlock.motion == Offset_WCS)
 			{
@@ -86,10 +95,13 @@ ReturnCodes ParseStream(){
 				workCoordSystems[selWCS].y = currentBlock.pos.y.full;
 				workCoordSystems[selWCS].z = currentBlock.pos.z.full;
 
+				//Reset LCS
+				localCoordSystem.x = 0;
+				localCoordSystem.y = 0;
+				localCoordSystem.z = 0;
+
 				//Set current offset
-				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
-				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
-				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
+				axisOffset = workCoordSystems[selWCS];
 
 				//Reset to last modal block
 				currentBlock = blockBuffer[modalPos];
@@ -116,6 +128,17 @@ ReturnCodes ParseStream(){
 
 				//Reset to last modal block
 				currentBlock = blockBuffer[modalPos];
+			} else if (currentBlock.motion == Offset_Sel) {
+				//Reset LCS
+				localCoordSystem.x = 0;
+				localCoordSystem.y = 0;
+				localCoordSystem.z = 0;
+
+				//Set current offset
+				axisOffset = workCoordSystems[selWCS];
+
+				//Reset to last modal block
+				currentBlock = blockBuffer[modalPos];
 			} else {
 				//Push the block into buffer unless it is full
 				readyBlock = true;
@@ -123,8 +146,8 @@ ReturnCodes ParseStream(){
 					ReportEvent(BUFFER_FULL, 'B');
 					return BUFFER_FULL;
 				} else {
-					WriteBlockBuffer(currentBlock);
 					readyBlock = false;
+					WriteBlockBuffer(currentBlock);
 				}
 			}
 		
@@ -308,7 +331,7 @@ ReturnCodes ParseWord(){
 					case 54: case 55: case 56: case 57: case 58: case 59: {
 						//Work coordinate system
 						selWCS = num - 54;
-						currentBlock.motion = Offset_LCS;	//Set to LCS to recalculate axisOffset
+						currentBlock.motion = Offset_Sel;	//Set to LCS to recalculate axisOffset
 						break;
 					}
 					case 90: {
@@ -325,19 +348,19 @@ ReturnCodes ParseWord(){
 			
 			case 'I':{
 				//Arc center X
-				currentBlock.arcCentre.x = Metric2Step(val);
+				currentBlock.arcCentre.x = Length2Step(val, currentBlock.coordinateUnit);
 				currentBlock.arcCentre.x.full += axisOffset.x;
 				break;	
 			}
 			case 'J':{
 				//Arc center Y
-				currentBlock.arcCentre.y = Metric2Step(val);
+				currentBlock.arcCentre.y = Length2Step(val, currentBlock.coordinateUnit);
 				currentBlock.arcCentre.y.full += axisOffset.y;
 				break;
 			}
 			case 'K':{
 				//Arc center Z
-				currentBlock.arcCentre.z = Metric2Step(val);
+				currentBlock.arcCentre.z = Length2Step(val, currentBlock.coordinateUnit);
 				currentBlock.arcCentre.z.full += axisOffset.z;
 				break;	
 			}
@@ -407,20 +430,29 @@ ReturnCodes ParseWord(){
 			}
 			case 'X':{
 				//Position X
-				currentBlock.pos.x = Metric2Step(val);
-				currentBlock.pos.x.full += axisOffset.x;
+				currentBlock.pos.x = Length2Step(val, currentBlock.coordinateUnit);
+				if (currentBlock.coordinateMode == absolute)
+				{
+					currentBlock.pos.x.full += axisOffset.x;
+				}
 				break;
 			}
 			case 'Y':{
 				//Position Y
-				currentBlock.pos.y = Metric2Step(val);
-				currentBlock.pos.y.full += axisOffset.y;
+				currentBlock.pos.y = Length2Step(val, currentBlock.coordinateUnit);
+				if (currentBlock.coordinateMode == absolute)
+				{
+					currentBlock.pos.y.full += axisOffset.y;
+				}
 				break;
 			}
 			case 'Z':{
 				//Position Z
-				currentBlock.pos.z = Metric2Step(val);
-				currentBlock.pos.z.full += axisOffset.z;
+				currentBlock.pos.z = Length2Step(val, currentBlock.coordinateUnit);
+				if (currentBlock.coordinateMode == absolute)
+				{
+					currentBlock.pos.z.full += axisOffset.z;
+				}
 				break;
 			}
 			default:{
@@ -454,7 +486,7 @@ void InitParser(){
 	currentBlock.pos.z.micro = 0;
 	currentBlock.motion = Home;
 	currentBlock.dispenseRate = 0;
-	currentBlock.moveSpeed = 0;
+	currentBlock.moveSpeed = 3;
 	currentBlock.dispenseEnable = false;
 	currentBlock.dwellTime = 0;
 	currentBlock.coordinateMode = absolute;
@@ -538,6 +570,7 @@ void WriteBlockBuffer(gc_block block){
 	modalPos = blockBufferHead;
 
 	blockBuffer[blockBufferHead] = block;
+
 }
 
 gc_block ReadBlockBuffer(){

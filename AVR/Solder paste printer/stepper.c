@@ -97,6 +97,7 @@ void PrepStep(void)
 			st.stepflag.line &= ~(1 << Y_LINE_EXE);
 		}
 		
+
 		
 		TCB1.CNT = 0;
 		TCB0.CNT = 0;
@@ -104,6 +105,148 @@ void PrepStep(void)
 		TCB1.INTCTRL |= TCB_CAPT_bm;
 		TCB0.INTCTRL |= TCB_CAPT_bm;
 		TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;
+
+	}
+}
+
+ISR(TCB0_INT_vect) //TCB0 vector
+{   
+    TCB0.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
+    
+	if(st.stepflag.line & (1 << X_LINE_READY))
+    {
+		if(st.stepflag.ready & (1 << X_FSTEP_READY))
+		{	
+			switch(st.direction.x_full)
+			{
+				case(pos_dir):
+					PORTC.OUT |= PIN2_bm;
+				break;
+				
+				case(neg_dir):
+					PORTC.OUT &= ~PIN2_bm;
+				break;
+			}
+					
+            if((st.counter.x.full) == (st.steps.x.full - 1))
+            {
+				st.stepflag.ready &= ~(1 << X_FSTEP_READY);
+				
+				if(!(st.stepflag.ready & (1 << X_MSTEP_READY)))
+				{
+					st.stepflag.line &= ~(1 << X_LINE_READY);
+					st.stepflag.line |= (1 << X_LINE_EXE);
+					TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+				}
+            }
+            else
+            {
+				st.counter.x.full++;
+            }
+		}
+        else if(st.stepflag.ready & (1 << X_MSTEP_READY))           
+		{        
+            switch(st.direction.x_micro)
+            {
+	            case(pos_dir):
+					PORTC.OUT |= PIN2_bm;
+	            break;
+				case(neg_dir):
+					PORTC.OUT &= ~PIN2_bm;
+	            break;
+            }
+                
+			if((st.counter.x.micro) == (st.steps.x.micro - 1))
+			{   
+				st.stepflag.ready &= ~(1 << X_MSTEP_READY);
+				if(!(st.stepflag.ready & (1 << X_FSTEP_READY)))
+				{	
+					st.stepflag.line &= ~(1 << X_LINE_READY);
+					st.stepflag.line |= (1 << X_LINE_EXE);
+					TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+				}
+            }
+            else
+            {
+				st.counter.x.micro++;
+            }
+		}
+	}
+	
+	else if(st.stepflag.line ==  56)
+	{	
+		currentState.blockFinished = true;
+	}
+}
+
+ISR(TCB1_INT_vect) //TCB1 vector
+{
+	TCB1.INTFLAGS = TCB_CAPT_bm; // clear interrupt flag
+ 
+	if(st.stepflag.line & (1 << Y_LINE_READY))
+	 {
+		if(st.stepflag.ready & (1 << Y_FSTEP_READY))
+		{
+			switch(st.direction.y_full)
+			{
+				case(pos_dir):
+				PORTA.OUT |= PIN5_bm;
+				break;
+				case(neg_dir):
+				PORTA.OUT &= ~PIN5_bm;
+				break;
+			}
+		 
+			if((st.counter.y.full) == (st.steps.y.full - 1))
+			{
+				st.stepflag.ready &= ~(1 << Y_FSTEP_READY);
+				
+				if(!(st.stepflag.ready & (1 << Y_MSTEP_READY)))
+				{
+					st.stepflag.line &= ~(1 << Y_LINE_READY);
+					st.stepflag.line |= (1 << Y_LINE_EXE);
+					TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+				}
+			}
+			else
+			{
+				st.counter.y.full++;
+			}
+		}
+		else if(st.stepflag.ready & (1 << Y_MSTEP_READY))
+		{
+			switch(st.direction.y_micro)
+			{
+				case(pos_dir):
+				PORTA.OUT |= PIN5_bm;
+				break;
+				case(neg_dir):
+				PORTA.OUT &= ~PIN5_bm;
+				break;
+			}
+		 
+			if((st.counter.y.micro) == (st.steps.y.micro - 1))
+			{
+				st.stepflag.ready &= ~(1 << Y_MSTEP_READY);
+				
+				if(!(st.stepflag.ready & (1 << Y_FSTEP_READY)))
+				{
+					st.stepflag.line &= ~(1 << Y_LINE_READY);
+					st.stepflag.line |= (1 << Y_LINE_EXE);
+					TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+				}
+			}
+			else
+			{
+				st.counter.y.micro++;
+			}
+		}
+	}
+	
+	else if(st.stepflag.line  ==  56)
+	{	
+		currentState.blockFinished = true;
+
 	}
 }
 
