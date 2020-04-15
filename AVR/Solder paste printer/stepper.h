@@ -23,7 +23,9 @@ extern "C" {
 void PrepStep(void);
 /*Calculetes the prescaling of TCA0 and period and pulse 
   lenght of the TCB compare registers from the value set from spindle value*/
-void FeedRateCalc(uint16_t speed);
+
+//void FeedRateCalc(uint16_t speed, int x, int y, enum MotionModes movment);
+
 /*Inits the TCB to run in PWM mode*/
 void stepper_TCB_init(void);
 
@@ -38,12 +40,15 @@ void stepper_TCB_init(void);
 
 
 /*Step line flags */
-#define X_LINE_READY    0
-#define Y_LINE_READY    1
-#define Z_LINE_READY    2
-#define X_LINE_EXE      3
-#define Y_LINE_EXE      4
-#define Z_LINE_EXE      5
+
+#define X_LINE_EXE      0
+#define Y_LINE_EXE      1
+#define Z_LINE_EXE      2
+
+#define X_MSTEP_SET		0
+#define Y_MSTEP_SET		1
+#define X_FSTEP_SET		2
+#define Y_FSTEP_SET		3
 
 
 enum DirSet
@@ -76,20 +81,32 @@ typedef struct
             z;
 }st_count;
 
+
+typedef struct
+{
+	uint8_t full_speed[2];
+	uint8_t micro_speed[2];
+}st_speedvect;
+
+
+
 typedef struct
 {
 	uint8_t ready;
 	uint8_t line;
+	uint8_t settings;
 }st_flag;
 
 typedef struct
 {
     StepVector3 steps;
     StepVector3 last_pos;
+	st_speedvect step_speed;
     st_count    counter;
     st_flag     stepflag;
 	dirAxis		direction;
 	uint16_t	line_number;
+	
 }st_block;
 
 

@@ -124,12 +124,12 @@ class UserCom:
 
 class mcuCom:
     mcu_comflags = []
-    mcu_com_num = [b'N', b'L', b'E', b'H', b'O', b'F', b'l']
+    mcu_com_num = [b'N', b'L', b'E', b'H', b'O', b'F']
     line = 0
     line_flag = 0
     last_line_flag = 0
     wait_for_num = False
-    console_txt = '{}. MCU system: {} '
+    console_txt = '{}. MCU system: {}'
 
     mcu_commands = {
         b'N': 'INSTRUCTION NR.{}: G-CODE COMMAND NOT RECOGNIZED!',
@@ -141,7 +141,6 @@ class mcuCom:
         b'H': 'INSTRUCTION LINE NR.{}: SHORT WORD.',
         b'B': 'DATA RECEIVED!',
         b'L': 'LINE NR.{}: EXECUTING',
-        b'l': 'LINE NR.{}: EXECUTED',
         b'o': 'MCU is initalized',
         b'f': 'Buffer soon full',
         b'a': 'Buffer ready'
@@ -157,7 +156,7 @@ class mcuCom:
             if inp in self.mcu_com_num:
                 self.wait_for_num = True
                 self.num_line = mcu_code
-                mcuCom.mcu_comflags.append(mcu_code)
+
             else:
                 mcuCom.line += 1
                 mcuCom.mcu_comflags.append(mcu_code)
@@ -166,10 +165,9 @@ class mcuCom:
         elif self.wait_for_num:
             mcuCom.line += 1
 
-            if 'LINE NR.{}: EXECUTING' or 'LINE NR.{}: EXECUTED' in mcuCom.mcu_comflags:
+            if 'LINE NR.{}: EXECUTING' in self.num_line:
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(int.from_bytes(inp, "big"))))
-                if 'LINE NR.{}: EXECUTING' in mcuCom.mcu_comflags:
-                    mcuCom.mcu_comflags.remove('LINE NR.{}: EXECUTING')
+                mcuCom.mcu_comflags.append(self.num_line)
 
             else:
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(inp)))
@@ -201,29 +199,23 @@ class mcuCom:
                     while True:
                         if not UserCom.system_pause:
                             break
-
-                elif self.last_line_flag + 2 == self.line_flag:
-                    while True:
-                        if ('LINE NR.{}: EXECUTED') in self.mcu_comflags:
-                            self.last_line_flag += 1
-                            self.clear_mcuflag('LINE NR.{}: EXECUTED')
-                            break
-                        elif UserCom.system_break:
-                            return
-                    break
-
-                elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
-                    self.clear_mcuflag('LINE NR.{}: EXECUTING')
-
                 elif ('DATA RECEIVED!') in self.mcu_comflags:
                     self.clear_mcuflag('DATA RECEIVED!')
                     break
 
+                elif self.line_flag >= 2 and self.line_flag > self.last_line_flag:
+                    while self.last_line_flag != self.line_flag:
+                        if UserCom.system_break:
+                            return
+                        elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
+                            self.clear_mcuflag('LINE NR.{}: EXECUTING')
+                            self.last_line_flag += 1
+
                 elif 'Buffer soon full' in mcuCom.mcu_comflags:
-                    mcuCom.clear_mcuflag('Buffer soon full')
+                    self.clear_mcuflag('Buffer soon full')
                     while True:
                         if 'Buffer ready' in mcuCom.mcu_comflags:
-                            mcuCom.clear_mcuflag('Buffer ready')
+                            self.clear_mcuflag('Buffer ready')
                             break
 
 
@@ -258,7 +250,7 @@ def intSerialport():
         print('\n')
 
     # connect to desired device
-    if "Curiosity Virtual COM Port (COM6)" in y.description:
+    if "Curiosity Virtual COM Port (COM7)" in y.description:
         ser.port = y.device
         s = ser.get_settings()
         pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
@@ -310,9 +302,11 @@ def TX_routine(data):
             if (TX != b' ' or TX != ''):
                 ser.write(TX)
 
+
                 if User_commands.system_break:
                     return
                 MCU_commands.comflag_state(x)
+
         break
 
 
