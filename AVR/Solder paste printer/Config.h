@@ -17,6 +17,7 @@
 #define PDIV 8
 #define F_CPU 20000000/PRESCALE			// Actually just fCLK__PER
 #define fCLK_PER F_CPU
+#define fCLK_MMS METRIC_STEP_LENGTH * fCLK_PER
 
 //USB com port
 #define USARTn USART3

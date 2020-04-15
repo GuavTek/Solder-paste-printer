@@ -115,9 +115,6 @@ void GetNewBlock(){
 	//Set dispense state
 	Dispense(theCurrentBlock.dispenseEnable);
 	
-	//Adjust movement speed
-	FeedRateCalc(theCurrentBlock.moveSpeed);
-	
 	//Execute block command
 	switch(theCurrentBlock.motion){
 		case Linear_interpolation:
