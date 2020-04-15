@@ -90,7 +90,6 @@ void Print(void) {
 		if(currentState.abortPrint){
 			//Stops printing and returns to idle mode
 			RTX_FLUSH();
-			//Stop stepping
 			return;
 		}
 		
@@ -157,6 +156,7 @@ void EndDwell(){
 }
 
 void InitEndSensors(){
+	//To do: find triggered level
 	PORTC.PIN5CTRL = PORT_ISC_BOTHEDGES_gc;
 	PORTD.PIN1CTRL = PORT_ISC_BOTHEDGES_gc;
 	PORTD.PIN2CTRL = PORT_ISC_BOTHEDGES_gc;
@@ -166,19 +166,10 @@ void InitEndSensors(){
 ISR(PORTC_PORT_vect){
 	if (PORTC.INTFLAGS & PIN5_bm)
 	{
-		//Note: check if pin is high when home command is started
 		//Y-axis end detected
-		if (PORTC.IN & PIN5_bm)
-		{
-			//Reverse Y direction
-		} 
-		else
-		{
-			//Stop Y Stepping
-			//Y pos = 0
-			//Step to thecurrentblock.pos.y
-		}
-			
+		//Stop Y motion
+		//Step back until no longer triggered
+		
 		//Log unexpected end trigger, and halt printing
 		if (currentState.task != Home)
 		{
@@ -193,16 +184,7 @@ ISR(PORTD_PORT_vect){
 	if (PORTD.INTFLAGS & PIN2_bm)
 	{
 		//X-axis end detected
-		if (PORTD.IN & PIN2_bm)
-		{
-			//Reverse X direction
-		}
-		else
-		{
-			//Stop X stepping
-			//X pos = 0
-		}
-
+		
 		//Log unexpected end trigger, and halt printing
 		if (currentState.task != Home)
 		{
@@ -214,16 +196,7 @@ ISR(PORTD_PORT_vect){
 	if (PORTD.INTFLAGS & PIN5_bm)
 	{
 		//Z-axis end detected
-		if (PORTD.IN & PIN5_bm)
-		{
-			//Reverse Z direction
-		}
-		else
-		{
-			//Stop Z stepping
-			//Z pos = 0
-		}
-
+		
 		//Log unexpected end trigger, and halt printing
 		if (currentState.task != Home)
 		{
@@ -234,7 +207,7 @@ ISR(PORTD_PORT_vect){
 	}
 	if (PORTD.INTFLAGS & PIN1_bm)
 	{
-		//Currently unused
+		//idk
 		
 		PORTD.INTFLAGS |= PIN1_bm;
 	}

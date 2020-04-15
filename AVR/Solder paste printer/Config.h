@@ -27,7 +27,7 @@
 #define TX_BUFFERSIZE 64
 
 #define METRIC_STEP_LENGTH 0.01495	//Length of a step in millimeters
-#define IMPERIAL_STEP_LENGTH 0.0005886	//Length of a step in freedom eagles
+#define INCH_STEP_LENGTH 0.0005886	//Length of a step in freedom eagles
 
 //axis offset from edge sensors in full-steps
 #define STD_OFFSET_X 100

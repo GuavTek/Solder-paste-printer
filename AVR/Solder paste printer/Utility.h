@@ -36,7 +36,6 @@ enum MotionModes {
 	Pause,
 	Offset_posReg,
 	Offset_LCS,
-	Offset_Sel,
 	Offset_WCS
 };
 
@@ -109,8 +108,11 @@ void Slice (const char original[], char sliced[], uint8_t startIndex, uint8_t st
 //Find number of characters after startIndex
 uint8_t StringLength(const char strng[], uint8_t startIndex);
 
-//Converts millimeters or inches to steps
-StepCount Length2Step(float length, enum CoordUnit unit);
+//Converts millimeters to steps
+StepCount Metric2Step(float millimeters);
+
+//Imperial not currently supported
+//StepCount UInch2Step(int minches);
 
 //Sets up the clock for StartTimer function
 void InitClock();
