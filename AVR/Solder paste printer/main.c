@@ -111,6 +111,8 @@ void GetNewBlock(){
 		theCurrentBlock = ReadBlockBuffer();
 	}
 	
+	currentState.blockFinished = false;
+
 	currentState.task = theCurrentBlock.motion;
 	
 	//Set dispense state
@@ -143,7 +145,7 @@ void GetNewBlock(){
 		}
 		default: break;
 	}
-	currentState.blockFinished = false;
+	
 }
 
 void EndDwell(){

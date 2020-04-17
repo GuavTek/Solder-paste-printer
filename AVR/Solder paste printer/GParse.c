@@ -14,6 +14,15 @@ inline bool IgnoreChar(char in);
 //Will look for the end of a word, returns true when a new word is detected
 inline bool WordEnd(char in);
 
+//Adds offset to axes that changed
+void OffsetAdd();
+
+//Discards unchanged axis values (For incremental mode)
+void DiscardUnchanged();
+
+//Reverts changed axes to previous modal value
+void RevertModal();
+
 //Write to block buffer
 void WriteBlockBuffer(gc_block block);
 
@@ -27,6 +36,7 @@ gc_block blockBuffer[BLOCK_BUFFER_SIZE];
 uint8_t colons;						//For ignoring comments
 
 gc_block currentBlock;				//The block being edited, retains previous data
+uint8_t axisChange;					//Bitmask indicating which axes have changed this block
 uint8_t wordIndex = 0;				//How long the word being parsed is now
 bool freshBlock = true;				//True if currentblock contains no new info
 char currentWord[MAX_WORD_SIZE];	//Buffer for the word being parsed
@@ -69,7 +79,7 @@ ReturnCodes ParseStream(){
 	
 	//Detect line end
 	if ((nextChar == '\r' || nextChar == '\n')){
-
+		//Parse the last word on line
 		if(ParseWord() == NONE){
 			freshBlock = false;
 		}
@@ -90,6 +100,8 @@ ReturnCodes ParseStream(){
 			//Check if it is an offset block
 			if (currentBlock.motion == Offset_WCS)
 			{
+				DiscardUnchanged();
+
 				//Set work coordinates
 				workCoordSystems[selWCS].x = currentBlock.pos.x.full;
 				workCoordSystems[selWCS].y = currentBlock.pos.y.full;
@@ -104,18 +116,22 @@ ReturnCodes ParseStream(){
 				axisOffset = workCoordSystems[selWCS];
 
 				//Reset to last modal block
-				currentBlock = blockBuffer[modalPos];
+				RevertModal();
 			} else if (currentBlock.motion == Offset_posReg)
 			{
+				DiscardUnchanged();
+
 				//Set current offset
 				axisOffset.x = currentBlock.pos.x.full;
 				axisOffset.y = currentBlock.pos.y.full;
 				axisOffset.z = currentBlock.pos.z.full;
 
 				//Reset to last modal block
-				currentBlock = blockBuffer[modalPos];
+				RevertModal();
 			} else if (currentBlock.motion == Offset_LCS)
 			{
+				DiscardUnchanged();
+
 				//Set local offset
 				localCoordSystem.x = currentBlock.pos.x.full;
 				localCoordSystem.y = currentBlock.pos.y.full;
@@ -127,8 +143,10 @@ ReturnCodes ParseStream(){
 				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
 
 				//Reset to last modal block
-				currentBlock = blockBuffer[modalPos];
+				RevertModal();
 			} else if (currentBlock.motion == Offset_Sel) {
+				DiscardUnchanged();
+
 				//Reset LCS
 				localCoordSystem.x = 0;
 				localCoordSystem.y = 0;
@@ -138,9 +156,17 @@ ReturnCodes ParseStream(){
 				axisOffset = workCoordSystems[selWCS];
 
 				//Reset to last modal block
-				currentBlock = blockBuffer[modalPos];
+				RevertModal();
 			} else {
 				//Push the block into buffer unless it is full
+
+				if (currentBlock.coordinateMode == absolute)
+				{
+					OffsetAdd();
+				} else {
+					DiscardUnchanged();
+				}
+
 				readyBlock = true;
 				if(BlockBufferAvailable() == BUFFER_FULL){
 					ReportEvent(BUFFER_FULL, 'B');
@@ -150,7 +176,7 @@ ReturnCodes ParseStream(){
 					WriteBlockBuffer(currentBlock);
 				}
 			}
-		
+			axisChange = 0;
 			ReportEvent(NEW_BLOCK, 0);
 			return NEW_BLOCK;
 		}
@@ -360,7 +386,7 @@ ReturnCodes ParseWord(){
 			}
 			case 'K':{
 				//Arc center Z
-				currentBlock.arcCentre.z = Length2Step(val, currentBlock.coordinateUnit);
+				currentBlock.arcCentre.z = LengthZ2Step(val, currentBlock.coordinateUnit);
 				currentBlock.arcCentre.z.full += axisOffset.z;
 				break;	
 			}
@@ -431,28 +457,19 @@ ReturnCodes ParseWord(){
 			case 'X':{
 				//Position X
 				currentBlock.pos.x = Length2Step(val, currentBlock.coordinateUnit);
-				if (currentBlock.coordinateMode == absolute)
-				{
-					currentBlock.pos.x.full += axisOffset.x;
-				}
+				axisChange |= 1 << 0;
 				break;
 			}
 			case 'Y':{
 				//Position Y
 				currentBlock.pos.y = Length2Step(val, currentBlock.coordinateUnit);
-				if (currentBlock.coordinateMode == absolute)
-				{
-					currentBlock.pos.y.full += axisOffset.y;
-				}
+				axisChange |= 1 << 1;
 				break;
 			}
 			case 'Z':{
 				//Position Z
-				currentBlock.pos.z = Length2Step(val, currentBlock.coordinateUnit);
-				if (currentBlock.coordinateMode == absolute)
-				{
-					currentBlock.pos.z.full += axisOffset.z;
-				}
+				currentBlock.pos.z = LengthZ2Step(val, currentBlock.coordinateUnit);
+				axisChange |= 1 << 2;
 				break;
 			}
 			default:{
@@ -462,6 +479,44 @@ ReturnCodes ParseWord(){
 		}
 	}
 	return NONE;
+}
+
+void OffsetAdd (){
+	if (axisChange & 1 << 0)
+	{
+		currentBlock.pos.x.full += axisOffset.x;
+	}
+	if (axisChange & 1 << 1)
+	{
+		currentBlock.pos.y.full += axisOffset.y;
+	}
+	if (axisChange & 1 << 2)
+	{
+		currentBlock.pos.z.full += axisOffset.z;
+	}
+}
+
+void DiscardUnchanged (){
+	if (!(axisChange & 1 << 0))
+	{
+		currentBlock.pos.x.full = 0;
+		currentBlock.pos.x.micro = 0;
+	}
+	if (!(axisChange & 1 << 1))
+	{
+		currentBlock.pos.y.full = 0;
+		currentBlock.pos.y.micro = 0;
+	}
+	if (!(axisChange & 1 << 2))
+	{
+		currentBlock.pos.z.full = 0;
+		currentBlock.pos.z.micro = 0;
+	}
+}
+
+void RevertModal(){
+	currentBlock.pos = blockBuffer[modalPos].pos;
+	currentBlock.motion = blockBuffer[modalPos].motion;
 }
 
 void InitParser(){
@@ -567,9 +622,16 @@ void WriteBlockBuffer(gc_block block){
 	{
 		blockBufferHead = 0;
 	}
-	modalPos = blockBufferHead;
 
 	blockBuffer[blockBufferHead] = block;
+
+	//Revert non-modal commands
+	if (block.motion == Dwell || block.motion == Home)
+	{
+		RevertModal();
+	} else {
+		modalPos = blockBufferHead;
+	}
 
 }
 

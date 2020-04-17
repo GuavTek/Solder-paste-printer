@@ -94,6 +94,29 @@ StepCount Length2Step(float length, enum CoordUnit unit){
 	return newStep;
 }
 
+StepCount LengthZ2Step(float length, enum CoordUnit unit){
+	StepCount newStep;
+	float tempLength;
+
+	//Convert to number of steps
+	if(unit == millimeter){
+		tempLength = length / METRIC_STEP_Z_LENGTH;
+		} else {
+		tempLength = length / IMPERIAL_STEP_Z_LENGTH;
+	}
+
+	//Save full-steps
+	newStep.full = round(tempLength);
+	
+	//Subtract full-steps
+	tempLength -= newStep.full;
+
+	//Get micro-steps
+	newStep.micro = round(tempLength * 16);
+	
+	return newStep;
+}
+
 void InitClock(){
 	
 	//Enable external clock

@@ -109,6 +109,9 @@ void Slice (const char original[], char sliced[], uint8_t startIndex, uint8_t st
 //Find number of characters after startIndex
 uint8_t StringLength(const char strng[], uint8_t startIndex);
 
+//Converts millimeters or inches to steps for Z aksis
+StepCount LengthZ2Step(float length, enum CoordUnit unit);
+
 //Converts millimeters or inches to steps
 StepCount Length2Step(float length, enum CoordUnit unit);
 
