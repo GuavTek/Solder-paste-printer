@@ -56,8 +56,8 @@ typedef enum {
 } Status;
 
 typedef struct {
-	int full;
-	int8_t micro;
+	int32_t full : 20;
+	int8_t micro : 6;
 } StepCount;
 
 typedef struct {
@@ -73,27 +73,32 @@ typedef struct {
 } Vector3;
 
 typedef struct {
-	Status state;
+	Status state : 2;
 	enum MotionModes task;
-	bool abortPrint;
-	bool noError;
-	bool blockFinished;
-	bool statusDump;
+	bool abortPrint : 1;
+	bool noError : 1;
+	bool blockFinished : 1;
+	bool statusDump : 1;
 } PrinterState;
 
 //Should contain all parameters of a command
 typedef struct {
+	enum MotionModes motion : 5;
+	enum CoordMode coordinateMode : 1;
+	enum CoordUnit coordinateUnit : 1;
+	bool dispenseEnable : 1;
+	uint8_t dispenseRate;
 	StepVector3 pos;
 	StepVector3 arcCentre;
-	uint32_t arcRadius;
-	enum MotionModes motion;
-	uint8_t dispenseRate;
-	uint16_t moveSpeed;
-	bool dispenseEnable;
-	uint16_t dwellTime;
+	uint16_t arcRadius;
 	uint16_t blockNumber;
-	enum CoordMode coordinateMode;
-	enum CoordUnit coordinateUnit;
+
+	//movespeed and dwell are never used together
+	union {
+		uint16_t moveSpeed;
+		uint16_t dwellTime;
+	};
+	
 } gc_block;
 
 //Global variables of what the printer is currently doing

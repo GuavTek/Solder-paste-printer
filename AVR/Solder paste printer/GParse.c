@@ -515,6 +515,7 @@ void DiscardUnchanged (){
 }
 
 void RevertModal(){
+	currentBlock.moveSpeed = blockBuffer[modalPos].moveSpeed;
 	currentBlock.pos = blockBuffer[modalPos].pos;
 	currentBlock.motion = blockBuffer[modalPos].motion;
 }
@@ -524,6 +525,7 @@ void InitParser(){
 	wordIndex = 0;
 	blockBufferHead = 0;
 	blockBufferTail = 0;
+	modalPos = 0;
 	
 	//Reset offset
 	workCoordSystems[0].x = STD_OFFSET_X;
