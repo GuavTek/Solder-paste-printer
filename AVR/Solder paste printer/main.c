@@ -49,7 +49,7 @@ int main(void)
 				currentState.state = idle;
 			}
 		}
-		
+		RunDelayedFunctions();
     }
 }
 
@@ -82,6 +82,8 @@ void Print(void) {
 			//Error state
 		}
 		
+		RunDelayedFunctions();
+
 		if (currentState.statusDump)
 		{
 			ReportStatus();

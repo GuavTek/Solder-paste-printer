@@ -45,6 +45,10 @@ void ReportEvent(ReturnCodes code, int num){
 			TX_write('A');
 			break;
 		} 
+		case BUFFER_EMPTY: {
+			TX_write('G');
+			TX_write(num);
+		}
 		case STOP_DETECTED: {
 			TX_write('S');
 			break;

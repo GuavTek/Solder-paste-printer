@@ -16,8 +16,9 @@ gc_block theCurrentBlock;
 void (*RTC_Callback[8])(void);
 uint16_t RTC_Times[8];			//The time the function should be called
 uint8_t sortedIndex[8];			//The order the functions should be called
-uint8_t indexS = 0;				//The index of sortedIndex
+int8_t indexS = 0;				//The index of sortedIndex
 uint8_t bAvail = 0xff;			//Bitmask indicates buffer availability
+volatile int8_t triggered = 0;			//The number of functions waiting to be run
 
 uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar){
 	for (uint8_t i = startIndex; i < MAX_WORD_SIZE; i++)
@@ -119,9 +120,6 @@ StepCount LengthZ2Step(float length, enum CoordUnit unit){
 
 void InitClock(){
 	
-	//Enable external clock
-	//CLKCTRL.XOSC32KCTRLA = CLKCTRL_ENABLE_bm;
-	
 	//Wait for registers to synchronize
 	while(RTC.STATUS > 0){}
 	
@@ -187,6 +185,11 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 				sortedIndex[i] = sortedIndex[i-1];
 			} else {
 				sortedIndex[i] = tempIndex;
+
+				//Set wait-time
+				while(RTC.STATUS & RTC_CMPBUSY_bm){}
+				RTC.CMP = RTC_Times[sortedIndex[indexS]];
+				
 				break;
 			}
 		}
@@ -194,12 +197,11 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 	else
 	{
 		sortedIndex[0] = tempIndex;
+		
+		//Set wait-time
+		while(RTC.STATUS & RTC_CMPBUSY_bm){}
+		RTC.CMP = RTC_Times[sortedIndex[indexS]];
 	}
-
-	//Set wait-time
-	while(RTC.STATUS & RTC_CMPBUSY_bm){}
-	RTC.CMP = RTC_Times[sortedIndex[indexS]];
-	
 
 	indexS++;
 	
@@ -207,40 +209,48 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 	RTC.INTCTRL = RTC_CMP_bm;
 }
 
+void RunDelayedFunctions(){
+	//Run all the queued functions that have been triggered
+	for (triggered; triggered > 0; triggered--)
+	{
+		//Check if index is valid
+		if (indexS > 0)
+		{
+			indexS--;
+		} else {
+			triggered = 0;
+			ReportEvent(BUFFER_EMPTY, 'R');
+			return;
+		}
+
+		//Set buffer position as available again
+		bAvail |= 1<<sortedIndex[indexS];
+
+		//Do something
+		RTC_Callback[sortedIndex[indexS]]();
+
+	}
+}
+
 ISR(RTC_CNT_vect){
 	//Clear interrupt flag
 	RTC.INTFLAGS = RTC_CMP_bm;
 
-	if (indexS > 0)
-	{
-		indexS--;
-	}
-	
+	triggered++;
+
+	//Take triggered functions into account
+	int8_t nextIndex = indexS - triggered;
+
 	//Check if there are more functions waiting
-	if (indexS > 0)
+	if (nextIndex > 0)
 	{
 		//Set next interrupt time
 		while(RTC.STATUS & RTC_CMPBUSY_bm){}
-		RTC.CMP = RTC_Times[sortedIndex[indexS - 1]];
-	} 
+		RTC.CMP = RTC_Times[sortedIndex[nextIndex - 1]];
+	}
 	else
 	{
 		//Disable interrupt
 		RTC.INTCTRL &= ~RTC_CMP_bm;
 	}
-
-	//Set buffer position as available again
-	bAvail |= 1<<sortedIndex[indexS];
-
-	//Abort if Callback is unassigned
-	if (*RTC_Callback[sortedIndex[indexS]] == 0)
-	{
-		ReportEvent(NO_CALLBACK,'T');
-		return;
-	}
-
-	//Do something
-	RTC_Callback[sortedIndex[indexS]]();
-
-
 }

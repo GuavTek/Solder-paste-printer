@@ -124,4 +124,7 @@ void InitClock();
 //Can wait for up to 8 functions simultaneously
 void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void));
 
+//Run the functions from StartTimer that have finished waiting
+void RunDelayedFunctions();
+
 #endif /* UTILITY_H_ */
