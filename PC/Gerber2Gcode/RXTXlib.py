@@ -211,12 +211,12 @@ class mcuCom:
                             self.clear_mcuflag('LINE NR.{}: EXECUTING')
                             self.last_line_flag += 1
 
-                elif 'Buffer soon full' in mcuCom.mcu_comflags:
-                    self.clear_mcuflag('Buffer soon full')
-                    while True:
-                        if 'Buffer ready' in mcuCom.mcu_comflags:
-                            self.clear_mcuflag('Buffer ready')
-                            break
+                #elif 'Buffer soon full' in mcuCom.mcu_comflags:
+                    #self.clear_mcuflag('Buffer soon full')
+                    #while True:
+                        #if 'Buffer ready' in mcuCom.mcu_comflags:
+                            #self.clear_mcuflag('Buffer ready')
+                            #break
 
 
 class Serial_routine(threading.Thread):
@@ -250,7 +250,7 @@ def intSerialport():
         print('\n')
 
     # connect to desired device
-    if "Curiosity Virtual COM Port (COM7)" in y.description:
+    if "Seriell USB-enhet (COM6)" in y.description:
         ser.port = y.device
         s = ser.get_settings()
         pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
