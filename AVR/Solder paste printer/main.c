@@ -123,7 +123,11 @@ void GetNewBlock(){
 	//Execute block command
 	switch(theCurrentBlock.motion){
 		case Linear_interpolation:
+			PrepStep();
+			break;
 		case Rapid_position:
+			PrepStep();
+			break;
 		case Arc_CW:
 		case Arc_CCW:
 		case Home: {

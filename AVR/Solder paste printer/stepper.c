@@ -27,6 +27,8 @@ void LinFeedRateCalc(uint16_t speed, uint16_t x, uint16_t y, uint8_t prescale);
 
 void FeedRateSet(uint16_t speed, StepCount x, StepCount y, enum MotionModes movment);
 
+void MotorPrescaleSet(uint8_t motor_presc);
+
 uint16_t current_line(uint16_t new_line, uint16_t last_line);
 
 void PrepStep(void)
@@ -36,7 +38,7 @@ void PrepStep(void)
 	from the current block in last_steps*/
 	
     StepVector3 delta;	  
-    if(st.stepflag.line & (1 << X_LINE_EXE) && st.stepflag.line & (1 << Y_LINE_EXE) && currentState.blockFinished == true)
+    if(st.stepflag.line & (1 << X_LINE_EXE) && st.stepflag.line & (1 << Y_LINE_EXE)/* && currentState.blockFinished == true*/)
     {
 		currentState.blockFinished = false;
 		TCA0.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
@@ -142,6 +144,52 @@ StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 }
 
 
+void MotorPrescaleSet(uint8_t motor_presc)
+{
+	switch(motor_presc)
+	{
+		case 1:
+		{
+			PORTD.OUT &= ~PIN4_bm;
+			PORTC.OUT &= ~PIN7_bm;
+			PORTC.OUT &= ~PIN1_bm;
+			break;
+		}
+		case 2:
+		{
+			PORTD.OUT |= PIN4_bm;
+			PORTC.OUT &= ~PIN7_bm;
+			PORTC.OUT &= ~PIN1_bm;
+			break;
+		}
+		case 4:
+		{
+			PORTD.OUT &= ~PIN4_bm;
+			PORTC.OUT |= PIN7_bm;
+			PORTC.OUT &= ~PIN1_bm;
+			break;
+		}
+		case 8:
+		{
+			PORTD.OUT |= PIN4_bm;
+			PORTC.OUT |= PIN7_bm;
+			PORTC.OUT &= ~PIN1_bm;
+			break;
+		}
+		case 16:
+		{
+			PORTD.OUT |= PIN4_bm;
+			PORTC.OUT |= PIN7_bm;
+			PORTC.OUT |= PIN1_bm;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+}
+
 enum DirSet StepDir(int step)
 {	
 	if(step != 0)
@@ -160,6 +208,7 @@ enum DirSet StepDir(int step)
 }
 
 
+
 void LinFeedRateCalc(uint16_t speed, uint16_t x, uint16_t y, uint8_t prescale)
 {
 	float temp[2];
@@ -171,7 +220,7 @@ void LinFeedRateCalc(uint16_t speed, uint16_t x, uint16_t y, uint8_t prescale)
 	}
 	else
 	{
-		float rad = atan2(y,x); 
+		float rad = atan2f(y,x); 
 		temp[0] = fCLK_MMS/(speed * cos(rad));
 		temp[1] = fCLK_MMS/(speed * sin(rad));
 	}
@@ -190,7 +239,7 @@ void PerCalc(float *temp, uint8_t prescale)
 		{
 			if (temp[j] != 0)
 			{
-				comp[j] = round(temp[j] / pow(2,i));
+				comp[j] = (uint16_t)round(temp[j] / pow(2,i));
 			}
 		}
 		
@@ -217,19 +266,13 @@ void FeedRateSet(uint16_t speed, StepCount x, StepCount y, enum MotionModes movm
 {	
 	float calc_val[2];
 	
-	if(speed > 0)
+
+	if(speed > 778)
 	{
-		if(speed > 778)
-		{
-			speed = 778;
-		}
+		speed = 778;
+	}
 		
-	}
 	
-	else
-	{
-		speed = 1;
-	}
 	switch(movment)
 	{
 		case(Linear_interpolation):
@@ -286,8 +329,8 @@ void stepper_TCB_init(void)
 // 	TCB2.CTRLB |= TCB_CNTMODE_PWM8_gc;
 // 	TCB2.CCMP = 0x80FF;
 
-	PORTC.DIRSET |= PIN6_bm;
-	PORTA.DIRSET |= PIN7_bm;
+	PORTC.DIRSET |= PIN2_bm;
+	PORTA.DIRSET |= PIN5_bm;
 	
 	st.stepflag.line = (1 << X_LINE_EXE) | (1 << Y_LINE_EXE);
 }
@@ -352,14 +395,16 @@ ISR(TCB0_INT_vect) //TCB0 vector
 		{
 			PerSelect(st.step_speed.full_speed[0], &TCB0);
 			
+			MotorPrescaleSet(0);
+			
 			switch(st.direction.x_full)
 			{
 				case(pos_dir):
-				PORTA.OUT |= PIN7_bm;
+				PORTC.OUT |= PIN2_bm;
 				break;
 				
 				case(neg_dir):
-				PORTA.OUT &= ~PIN7_bm;
+				PORTC.OUT &= ~PIN2_bm;
 				break;
 			}
 			
@@ -390,14 +435,16 @@ ISR(TCB0_INT_vect) //TCB0 vector
 		{
 			PerSelect(st.step_speed.micro_speed[0], &TCB0);
 			
+			MotorPrescaleSet(16);
+			
 			switch(st.direction.x_full)
 			{
 				case(pos_dir):
-				PORTA.OUT |= PIN7_bm;
+				PORTC.OUT |= PIN2_bm;
 				break;
 				
 				case(neg_dir):
-				PORTA.OUT &= ~PIN7_bm;
+				PORTC.OUT &= ~PIN2_bm;
 				break;
 			}
 			
@@ -444,13 +491,15 @@ ISR(TCB1_INT_vect) //TCB1 vector
 		{
 			PerSelect(st.step_speed.full_speed[1], &TCB1);
 			
+			MotorPrescaleSet(0);
+			
 			switch(st.direction.y_full)
 			{
 				case(pos_dir):
-				PORTC.OUT |= PIN6_bm;
+				PORTA.OUT |= PIN5_bm;
 				break;
 				case(neg_dir):
-				PORTC.OUT &= ~PIN6_bm;
+				PORTA.OUT &= ~PIN5_bm;
 				break;
 			}
 			
@@ -478,13 +527,15 @@ ISR(TCB1_INT_vect) //TCB1 vector
 		{
 			PerSelect(st.step_speed.micro_speed[1], &TCB1);
 			
+			MotorPrescaleSet(16);
+			
 			switch(st.direction.y_full)
 			{
 				case(pos_dir):
-				PORTC.OUT |= PIN6_bm;
+				PORTA.OUT |= PIN5_bm;
 				break;
 				case(neg_dir):
-				PORTC.OUT &= ~PIN6_bm;
+				PORTA.OUT &= ~PIN5_bm;
 				break;
 			}
 			
