@@ -378,7 +378,7 @@ uint16_t current_line(uint16_t new_line, uint16_t last_line)
 	if (new_line > last_line)
 	{
 		TX_write('L');
-		TX_write(new_line);
+		SendInt(new_line);
 		last_line = new_line;
 	}
 	return last_line;

@@ -83,20 +83,20 @@ typedef struct {
 
 //Should contain all parameters of a command
 typedef struct {
-	enum MotionModes motion : 5;
-	enum CoordMode coordinateMode : 1;
-	enum CoordUnit coordinateUnit : 1;
-	bool dispenseEnable : 1;
-	uint8_t dispenseRate;
-	StepVector3 pos;
-	StepVector3 arcCentre;
-	uint16_t arcRadius;
-	uint16_t blockNumber;
+	enum MotionModes motion : 5;		//G0, G1, G2, G3, G4, G28, M0, M1, M2, M30
+	enum CoordMode coordinateMode : 1;	//G90, G91
+	enum CoordUnit coordinateUnit : 1;	//G21, G20
+	bool dispenseEnable : 1;			//M3, M4, M5
+	uint8_t dispenseRate;				//S
+	StepVector3 pos;					//X, Y, Z
+	StepVector3 arcCentre;				//I, J, K
+	uint16_t arcRadius;					//R
+	uint16_t blockNumber;				//N
 
 	//movespeed and dwell are never used together
 	union {
-		uint16_t moveSpeed;
-		uint16_t dwellTime;
+		uint16_t moveSpeed;				//F
+		uint16_t dwellTime;				//P + G4
 	};
 	
 } gc_block;
