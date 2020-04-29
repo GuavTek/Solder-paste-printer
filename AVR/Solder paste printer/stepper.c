@@ -171,7 +171,7 @@ void LinFeedRateCalc(uint16_t speed, uint16_t x, uint16_t y, uint8_t prescale)
 	}
 	else
 	{
-		float rad = atan2f(y,x); 
+		float rad = atan2(y,x); 
 		temp[0] = fCLK_MMS/(speed * cos(rad));
 		temp[1] = fCLK_MMS/(speed * sin(rad));
 	}
@@ -241,7 +241,7 @@ void FeedRateSet(uint16_t speed, StepCount x, StepCount y, enum MotionModes movm
 			PerCalc(calc_val, 1);					
 			break;
 		default:
-			calc_val[0] = calc_val[1] = fCLK_MMS/speed;
+			calc_val[0] = calc_val[1] = fCLK_MMS/1;
 			PerCalc(calc_val, 1);
 			break;
 	}
