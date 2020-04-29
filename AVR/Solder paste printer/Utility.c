@@ -178,12 +178,14 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 				break;
 			}
 
-			//Element 0 in array will be used last
+			//Compare time in buffer with new time
 			uint16_t compTime = RTC_Times[sortedIndex[i-1]] - currentTime;
 			if (compTime < tempTime)
 			{
+				//Move element in buffer
 				sortedIndex[i] = sortedIndex[i-1];
 			} else {
+				//Place the new element
 				sortedIndex[i] = tempIndex;
 
 				//Set wait-time

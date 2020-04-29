@@ -91,6 +91,27 @@ void ReportEvent(ReturnCodes code, int num){
 	
 }
 
+void SendInt(int num){
+	char tempString[8];
+	itoa(num, tempString, 10);
+	
+	for (uint8_t i = 0; i < 8; i++)
+	{
+		if (tempString[i] == 0)
+		{
+			break;
+		}
+		if (TX_available() == BUFFER_FULL)
+		{
+			break;
+		} else {
+			TX_write(tempString[i]);
+		}
+		
+	}
+	
+}
+
 void ReportStatus(){
 	static uint8_t parIndex;
 	const uint8_t ReportLen = 10;

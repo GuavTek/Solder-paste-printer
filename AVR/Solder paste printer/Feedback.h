@@ -12,6 +12,9 @@
 //Sends error statuses to pc
 void ReportEvent(ReturnCodes code, int num);
 
+//Sends a number as a string
+void SendInt(int num);
+
 //Dumps status of printer to PC
 void ReportStatus();
 

@@ -27,6 +27,8 @@ uint16_t timer = 300;
 int main(void)
 {
 	USART_INIT(3, 9600);
+	PORTC.DIRSET = PIN3_bm;	//Motor enable pin
+	PORTC.OUTSET = PIN3_bm;	//Disable motor
 	InitEndSensors();
 	InitClock();
 	InitDispenser();
@@ -60,6 +62,7 @@ void Blinky(){
 
 //Main loop when printing
 void Print(void) {
+	PORTC.OUTCLR = PIN3_bm; //Enable motors
 	InitParser();
 	TX_write('k');
 	TX_write('\n');
@@ -92,6 +95,7 @@ void Print(void) {
 		if(currentState.abortPrint){
 			//Stops printing and returns to idle mode
 			RTX_FLUSH();
+			PORTC.OUTSET = PIN3_bm;	//Disable motors
 			//Stop stepping
 			return;
 		}
