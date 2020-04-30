@@ -541,7 +541,7 @@ void InitParser(){
 	currentBlock.pos.y.micro = 0;
 	currentBlock.pos.z.full = STD_OFFSET_Z;
 	currentBlock.pos.z.micro = 0;
-	currentBlock.motion = Home;
+	currentBlock.motion = Rapid_position;
 	currentBlock.dispenseRate = 0;
 	currentBlock.moveSpeed = 3;
 	currentBlock.dispenseEnable = false;

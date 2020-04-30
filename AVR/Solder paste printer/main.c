@@ -23,6 +23,7 @@ void EndDwell();
 void Blinky(void);
 
 uint16_t timer = 300;
+uint8_t start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
 
 int main(void)
 {
@@ -33,6 +34,7 @@ int main(void)
 	InitClock();
 	InitDispenser();
 	stepper_TCB_init();
+	StepperInit();
 	PORTF.DIRSET = PIN5_bm;	//Onboard LED
 	sei();
 	Blinky();
@@ -135,7 +137,7 @@ void GetNewBlock(){
 		case Arc_CW:
 		case Arc_CCW:
 		case Home: {
-			PrepStep();
+			HomingRoutine(theCurrentBlock.motion);
 			break;
 		}
 		case Dwell: {
@@ -179,11 +181,23 @@ ISR(PORTC_PORT_vect){
 		//Y-axis end detected
 		if (PORTC.IN & PIN5_bm)
 		{
+			if(start_pos & (1 << START_POS_Y))
+			{
+				TCB1.CTRLB |= TCB_CCMPEN_bm;
+				TCB1.INTCTRL &= ~TCB_CAPT_bm;
+			}
+			else
+			{
+				TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+				start_pos |= (1 << START_POS_Y);
+			}
 			//Reverse Y direction
 		} 
 		else
 		{
 			//Stop Y Stepping
+			start_pos &= ~(1 << START_POS_Y);
+			TCB1.CTRLB &= ~TCB_CCMPEN_bm;
 			//Y pos = 0
 			//Step to thecurrentblock.pos.y
 		}
@@ -204,12 +218,23 @@ ISR(PORTD_PORT_vect){
 		//X-axis end detected
 		if (PORTD.IN & PIN2_bm)
 		{
-			//Reverse X direction
+			if(start_pos & (1 << START_POS_X))
+			{
+				TCB0.CTRLB |= TCB_CCMPEN_bm;
+				TCB0.INTCTRL &= ~TCB_CAPT_bm;
+			}
+			else
+			{
+				TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+				start_pos |= (1 << START_POS_X);
+			}
 		}
 		else
 		{
 			//Stop X stepping
 			//X pos = 0
+			start_pos &= ~(1 << START_POS_X);
+			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
 		}
 
 		//Log unexpected end trigger, and halt printing

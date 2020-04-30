@@ -144,6 +144,58 @@ StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 }
 
 
+void StepperInit(void)
+{
+	st.counter.x.full = 0;
+	st.counter.x.micro = 0;
+	st.last_pos.x.full = 0;
+	st.last_pos.x.micro = 0;
+	st.steps.x.full = 0;
+	st.steps.x.micro = 0;
+	
+	st.counter.y.full = 0;
+	st.counter.y.micro = 0;
+	st.last_pos.y.full = 0;
+	st.last_pos.y.micro = 0;
+	st.steps.y.full = 0;
+	st.steps.y.micro = 0;
+	
+	st.stepflag.line =  (1 << X_LINE_EXE) | (1 << Y_LINE_EXE);
+	st.stepflag.ready = 0;
+	st.stepflag.settings = 0;
+	
+	TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+	TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+	TCB0.INTCTRL &= ~TCB_CAPT_bm;
+	TCB1.INTCTRL &= ~TCB_CAPT_bm;	
+}
+
+
+void HomingRoutine(enum MotionModes motion)
+{
+	if(motion == Home)
+	{
+		currentState.blockFinished = false;
+		
+		PORTC.OUT &= ~PIN2_bm;
+		PORTA.OUT &= ~PIN5_bm;
+		
+		prescale_select(8);
+		PerSelect(255, &TCB0);
+		PerSelect(255, &TCB1);
+		
+		MotorPrescaleSet(1);
+		
+		StepperInit();
+		
+		TCB0.CTRLB |= TCB_CCMPEN_bm;
+		TCB1.CTRLB |= TCB_CCMPEN_bm;
+		TCB0.INTCTRL &= ~TCB_CAPT_bm;
+		TCB1.INTCTRL &= ~TCB_CAPT_bm;
+	}
+}
+
+
 void MotorPrescaleSet(uint8_t motor_presc)
 {
 	switch(motor_presc)
@@ -189,6 +241,7 @@ void MotorPrescaleSet(uint8_t motor_presc)
 		}
 	}
 }
+
 
 enum DirSet StepDir(int step)
 {	
@@ -331,8 +384,6 @@ void stepper_TCB_init(void)
 
 	PORTC.DIRSET |= PIN2_bm;
 	PORTA.DIRSET |= PIN5_bm;
-	
-	st.stepflag.line = (1 << X_LINE_EXE) | (1 << Y_LINE_EXE);
 }
 
 
@@ -395,7 +446,7 @@ ISR(TCB0_INT_vect) //TCB0 vector
 		{
 			PerSelect(st.step_speed.full_speed[0], &TCB0);
 			
-			MotorPrescaleSet(0);
+			MotorPrescaleSet(1);
 			
 			switch(st.direction.x_full)
 			{
@@ -491,7 +542,7 @@ ISR(TCB1_INT_vect) //TCB1 vector
 		{
 			PerSelect(st.step_speed.full_speed[1], &TCB1);
 			
-			MotorPrescaleSet(0);
+			MotorPrescaleSet(1);
 			
 			switch(st.direction.y_full)
 			{
