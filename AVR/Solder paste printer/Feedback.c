@@ -109,7 +109,8 @@ void SendInt(int num){
 		}
 		
 	}
-	
+	TX_write('\n');
+	TX_write('\r');
 }
 
 void ReportStatus(){
