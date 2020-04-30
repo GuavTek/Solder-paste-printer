@@ -83,6 +83,8 @@ void Print(void) {
 		else
 		{
 			//Error state
+			//Stop motors
+			//Stop dispenser
 		}
 		
 		RunDelayedFunctions();

@@ -482,15 +482,15 @@ ReturnCodes ParseWord(){
 }
 
 void OffsetAdd (){
-	if (axisChange & 1 << 0)
+	if (axisChange & (1 << 0))
 	{
 		currentBlock.pos.x.full += axisOffset.x;
 	}
-	if (axisChange & 1 << 1)
+	if (axisChange & (1 << 1))
 	{
 		currentBlock.pos.y.full += axisOffset.y;
 	}
-	if (axisChange & 1 << 2)
+	if (axisChange & (1 << 2))
 	{
 		currentBlock.pos.z.full += axisOffset.z;
 	}
@@ -569,6 +569,9 @@ inline bool IgnoreChar(char in){
 	} else if (in == '/')
 	{
 		return true;
+	} else if (in == '\n' || in == '\r')
+	{
+		return false;
 	} else if ((in == '(') || (in == ';'))
 	{
 		colons++;
