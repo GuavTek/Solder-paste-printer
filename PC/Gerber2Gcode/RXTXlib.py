@@ -1,7 +1,9 @@
 import pprint
 import serial
 import threading
+import sys
 from serial.tools import list_ports
+
 
 ser = serial.Serial()
 pp = pprint.PrettyPrinter(indent=2)
@@ -134,7 +136,7 @@ class mcuCom:
     mcu_commands = {
         b'N': 'INSTRUCTION NR.{}: G-CODE COMMAND NOT RECOGNIZED!',
         b'E': 'INSTRUCTION NR.{}: UNEXPECTED EDGE!',
-        b'O': 'INSTRUCTION NR.{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES CAN BE OVERWRITTEN)',
+        b'O': 'INSTRUCTION NR.{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)',
         b'F': 'INSTRUCTION NR.{}: BUFFER FULL! WAITING FOR LINES STORED IN BUFFER TO BE EXECUTED',
         b'A': 'BUFFER READY TO RECEIVE DATA',
         b'S': 'STOP DETECTED!',
@@ -142,12 +144,13 @@ class mcuCom:
         b'B': 'DATA RECEIVED!',
         b'L': 'LINE NR.{}: EXECUTING',
         b'o': 'MCU is initalized',
-        b'f': 'Buffer soon full',
-        b'a': 'Buffer ready'
+        b'f': 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN',
+        b'a': 'RX BUFFER IS READY TO RECEIVE DATA'
     }
     mcu_values = list(mcu_commands.values())
     def __init__(self):
         self.num_line = ''
+        self.num_res = ''
 
     def __call__(self, inp):
         mcu_code = self.mcu_commands.get(inp, 'None')
@@ -163,11 +166,15 @@ class mcuCom:
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, mcu_code))
 
         elif self.wait_for_num:
-            mcuCom.line += 1
+
 
             if 'LINE NR.{}: EXECUTING' in self.num_line:
-                pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(int.from_bytes(inp, "big"))))
-                mcuCom.mcu_comflags.append(self.num_line)
+                self.num_res += inp
+                if inp == b'\n':
+                    mcuCom.line += 1
+                    pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(self.num_res)))
+                    self.num_res = ''
+                    mcuCom.mcu_comflags.append(self.num_line)
 
             else:
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(inp)))
@@ -211,12 +218,12 @@ class mcuCom:
                             self.clear_mcuflag('LINE NR.{}: EXECUTING')
                             self.last_line_flag += 1
 
-                #elif 'Buffer soon full' in mcuCom.mcu_comflags:
-                    #self.clear_mcuflag('Buffer soon full')
-                    #while True:
-                        #if 'Buffer ready' in mcuCom.mcu_comflags:
-                            #self.clear_mcuflag('Buffer ready')
-                            #break
+                elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in mcuCom.mcu_comflags:
+                    self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
+                    while True:
+                        if 'Buffer ready' in mcuCom.mcu_comflags:
+                            self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
+                            break
 
 
 class Serial_routine(threading.Thread):
@@ -238,6 +245,13 @@ def intSerialport():
     ser.baudrate = baud
     ser.port = "null"
     ser.timeout = 1
+    system_os = ''
+    mcu_desc = ''
+    mcu_descdict = {
+        'darwin': 'nEDBG CMSIS-DAP',
+        'win32':  ['Seriell USB-enhet', 'Curiosity virtual COMPORT'],
+        'win64':  ['Seriell USB-enhet', 'Curiosity virtual COMPORT'],
+    }
     # Check for connected devices
     x = list(list_ports.comports())
 
@@ -249,8 +263,11 @@ def intSerialport():
         pp.pprint("HWID: " + y.hwid)
         print('\n')
 
+    system_os = sys.platform
+    mcu_desc = mcu_descdict.get(system_os)
+
     # connect to desired device
-    if "Seriell USB-enhet (COM6)" in y.description:
+    if mcu_desc in y.description:
         ser.port = y.device
         s = ser.get_settings()
         pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
