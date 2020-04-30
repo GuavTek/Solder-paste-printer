@@ -29,6 +29,9 @@ void PrepStep(void);
 /*Inits the TCB to run in PWM mode*/
 void stepper_TCB_init(void);
 
+void HomingRoutine(enum MotionModes);
+
+void StepperInit(void);
 
 /*Step ready flags */
 #define X_MSTEP_READY    0
@@ -45,11 +48,16 @@ void stepper_TCB_init(void);
 #define Y_LINE_EXE      1
 #define Z_LINE_EXE      2
 
+
 #define X_MSTEP_SET		0
 #define Y_MSTEP_SET		1
 #define X_FSTEP_SET		2
 #define Y_FSTEP_SET		3
 
+#define HOMING_START	0
+#define HOMING_END		1
+#define START_POS_X		2
+#define START_POS_Y		3
 
 enum DirSet
 {
