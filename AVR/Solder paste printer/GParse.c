@@ -41,6 +41,7 @@ uint8_t wordIndex = 0;				//How long the word being parsed is now
 bool freshBlock = true;				//True if currentblock contains no new info
 char currentWord[MAX_WORD_SIZE];	//Buffer for the word being parsed
 uint8_t modalPos;					//Buffer position of the last modal command
+bool readyBlock = false;
 
 int* selectedAxis;					//Used to increment axisOffset
 Vector3 axisOffset;					//Current offset
@@ -49,7 +50,6 @@ Vector3 workCoordSystems[6];		//WCS, set of reference points
 uint8_t selWCS = 0;					//Currently selected WCS
 
 ReturnCodes ParseStream(){
-	static bool readyBlock = false;
 	
 	//Skips if current block hasn't been placed in buffer yet
 	if (readyBlock)
@@ -88,14 +88,6 @@ ReturnCodes ParseStream(){
 		if(freshBlock == false){
 			colons = 0;
 			freshBlock = true;
-			
-			//Set position to local zero if homeing
-			if (currentBlock.motion == Home)
-			{
-				currentBlock.pos.x.full = axisOffset.x;
-				currentBlock.pos.y.full = axisOffset.y;
-				currentBlock.pos.z.full = axisOffset.z;
-			}
 
 			//Check if it is an offset block
 			if (currentBlock.motion == Offset_WCS)
@@ -541,7 +533,7 @@ void InitParser(){
 	currentBlock.pos.y.micro = 0;
 	currentBlock.pos.z.full = STD_OFFSET_Z;
 	currentBlock.pos.z.micro = 0;
-	currentBlock.motion = Rapid_position;
+	currentBlock.motion = Home;
 	currentBlock.dispenseRate = 0;
 	currentBlock.moveSpeed = 3;
 	currentBlock.dispenseEnable = false;
@@ -631,10 +623,19 @@ void WriteBlockBuffer(gc_block block){
 	blockBuffer[blockBufferHead] = block;
 
 	//Revert non-modal commands
-	if (block.motion == Dwell || block.motion == Home)
+	if (block.motion == Dwell)
 	{
 		RevertModal();
-	} else {
+	} else if (block.motion == Home)
+	{
+		//Set position to local zero if homeing
+		currentBlock.pos.x.full = axisOffset.x;
+		currentBlock.pos.y.full = axisOffset.y;
+		currentBlock.pos.z.full = axisOffset.z;
+		currentBlock.motion = Rapid_position;
+		readyBlock = true;
+	}
+	else {
 		modalPos = blockBufferHead;
 	}
 

@@ -9,6 +9,8 @@
 
 st_block st;
 
+uint8_t start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
+
 /*sets prescaling of the TCA0 clk*/
 void prescale_select(uint8_t per);
 /*calculates steps.*/
@@ -168,6 +170,10 @@ void StepperInit(void)
 	TCB1.CTRLB &= ~TCB_CCMPEN_bm;
 	TCB0.INTCTRL &= ~TCB_CAPT_bm;
 	TCB1.INTCTRL &= ~TCB_CAPT_bm;	
+	
+	PORTD.DIRSET = PIN4_bm;
+	PORTC.DIRSET = PIN7_bm;
+	PORTC.DIRSET = PIN1_bm;
 }
 
 
@@ -177,16 +183,32 @@ void HomingRoutine(enum MotionModes motion)
 	{
 		currentState.blockFinished = false;
 		
-		PORTC.OUT &= ~PIN2_bm;
-		PORTA.OUT &= ~PIN5_bm;
+		//Is end sensor X triggered?
+		if (PORTD.IN & PIN2_bm)
+		{
+			PORTC.OUTSET = PIN2_bm;
+		} else {
+			PORTC.OUTCLR = PIN2_bm;
+		}
+		
+		//Is end sensor Y triggered?
+		if (PORTC.IN & PIN5_bm)
+		{
+			PORTA.OUTSET = PIN5_bm;
+		} else {
+			PORTA.OUTCLR = PIN5_bm;
+		}
 		
 		prescale_select(8);
+		
 		PerSelect(255, &TCB0);
 		PerSelect(255, &TCB1);
 		
 		MotorPrescaleSet(1);
 		
 		StepperInit();
+		
+		start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
 		
 		TCB0.CTRLB |= TCB_CCMPEN_bm;
 		TCB1.CTRLB |= TCB_CCMPEN_bm;
@@ -618,5 +640,126 @@ ISR(TCB1_INT_vect) //TCB1 vector
 			currentState.blockFinished = true;
 		}
 		TCB1.INTCTRL &= ~TCB_CAPT_bm;
+	}
+}
+
+void InitEndSensors(){
+	PORTC.PIN5CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
+	PORTD.PIN1CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
+	PORTD.PIN2CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
+	PORTD.PIN5CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
+}
+
+ISR(PORTC_PORT_vect){
+	if (PORTC.INTFLAGS & PIN5_bm)
+	{
+		//Y-axis end detected
+		if (PORTC.IN & PIN5_bm)
+		{
+			//Entering end-sensor
+			/*if(start_pos & (1 << START_POS_Y))
+			{
+				TCB1.CTRLB |= TCB_CCMPEN_bm;
+				TCB1.INTCTRL &= ~TCB_CAPT_bm;
+			}
+			else
+			{
+				TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+				start_pos |= (1 << START_POS_Y);
+			}*/
+			
+			//Reverse Y direction
+			PORTA.OUTSET = PIN5_bm;
+		} 
+		else
+		{
+			//Leaving end-sensor
+			//Stop Y Stepping
+			start_pos &= ~(1 << START_POS_Y);
+			TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+		}
+			
+		//Log unexpected end trigger, and halt printing
+		if (currentState.task != Home)
+		{
+			currentState.noError = false;
+			ReportEvent(UNEXPECTED_EDGE, 'Y');
+		} else {
+			if(start_pos == 0) {
+				currentState.blockFinished = true;
+			}
+		}
+		PORTC.INTFLAGS |= PIN5_bm;
+	}
+}
+
+ISR(PORTD_PORT_vect){
+	if (PORTD.INTFLAGS & PIN2_bm)
+	{
+		//X-axis end detected
+		if (PORTD.IN & PIN2_bm)
+		{
+			//Entering edge sensor
+			/*if(start_pos & (1 << START_POS_X))
+			{
+				TCB0.CTRLB |= TCB_CCMPEN_bm;
+				TCB0.INTCTRL &= ~TCB_CAPT_bm;
+			}
+			else
+			{
+				TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+				start_pos |= (1 << START_POS_X);
+			}*/
+			
+			//Reverse X
+			PORTC.OUTSET = PIN2_bm;
+		}
+		else
+		{
+			//Leaving edge sensor
+			
+			//Stop X stepping
+			start_pos &= ~(1 << START_POS_X);
+			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+		}
+
+		//Log unexpected end trigger, and halt printing
+		if (currentState.task != Home)
+		{
+			currentState.noError = false;
+			ReportEvent(UNEXPECTED_EDGE, 'X');
+		} else {
+			if(start_pos == 0) {
+				currentState.blockFinished = true;
+			}
+		}
+		PORTD.INTFLAGS |= PIN2_bm;
+	}
+	if (PORTD.INTFLAGS & PIN5_bm)
+	{
+		//Z-axis end detected
+		if (PORTD.IN & PIN5_bm)
+		{
+			//Reverse Z direction
+		}
+		else
+		{
+			//Stop Z stepping
+			//Z pos = 0
+		}
+
+		//Log unexpected end trigger, and halt printing
+		if (currentState.task != Home)
+		{
+			currentState.noError = false;
+			ReportEvent(UNEXPECTED_EDGE, 'Z');
+		}
+		PORTD.INTFLAGS |= PIN5_bm;
+	}
+	if (PORTD.INTFLAGS & PIN1_bm)
+	{
+		//Currently unused
+		
+		PORTD.INTFLAGS |= PIN1_bm;
 	}
 }

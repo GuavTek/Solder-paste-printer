@@ -56,8 +56,8 @@ typedef enum {
 } Status;
 
 typedef struct {
-	int32_t full : 20;
-	int8_t micro : 6;
+	int32_t full;
+	int8_t micro;
 } StepCount;
 
 typedef struct {
@@ -65,6 +65,8 @@ typedef struct {
 	StepCount y;
 	StepCount z;
 } StepVector3;
+
+
 
 typedef struct {
 	int x;
