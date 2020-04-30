@@ -23,6 +23,8 @@ void EndDwell();
 void Blinky(void);
 
 uint16_t timer = 300;
+bool prevError = false;			//Helps keep track when entering/exiting error mode
+bool prevMotor = false;			//Keeps motor state before error
 uint8_t start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
 
 int main(void)
@@ -78,6 +80,18 @@ void Print(void) {
 	while(1){
 		if (currentState.noError)
 		{
+			//Normal state
+			if (prevError)
+			{
+				prevError = false;
+				
+				//Restart dispenser
+				Dispense(theCurrentBlock.dispenseEnable);
+				
+				//Restart motors
+				TCA0.SINGLE.CTRLA |= prevMotor;
+			}
+			
 			ParseStream();
 			GetNewBlock();
 			
@@ -85,8 +99,19 @@ void Print(void) {
 		else
 		{
 			//Error state
-			//Stop motors
-			//Stop dispenser
+			if (!prevError)
+			{
+				prevError = true;
+				
+				//Save motor state
+				prevMotor = TCA0.SINGLE.CTRLA & TCA_SINGLE_ENABLE_bm;
+				
+				//Stop dispenser
+				Dispense(false);
+				
+				//Stop motors
+				TCA0.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
+			}
 		}
 		
 		RunDelayedFunctions();
