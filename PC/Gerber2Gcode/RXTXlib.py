@@ -65,6 +65,7 @@ class UserCom:
                 ser.cancel_write()
                 ser.write(com_send)
                 UserCom.user_comflags = user_inp
+                UserCom.reset()
 
             elif user_message == "?":
                 pp.pprint('Current settings are: ')
@@ -238,6 +239,7 @@ class Serial_routine(threading.Thread):
         TX_routine(self.data)
 
 
+
 def intSerialport():
     # std. settings for uart
 
@@ -318,7 +320,6 @@ def TX_routine(data):
             TX = bytes(x, 'utf-8')
             if (TX != b' ' or TX != ''):
                 ser.write(TX)
-
 
                 if User_commands.system_break:
                     return

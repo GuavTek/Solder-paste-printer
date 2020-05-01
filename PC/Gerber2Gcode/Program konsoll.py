@@ -12,7 +12,6 @@ thread_dict = {}
 
 
 while True:
-
     Mcucom(uart.RX_routine())
     if Usercom.user_comflags == "run" and not start_trans:
         thread_index += 1
@@ -20,13 +19,13 @@ while True:
         thread_dict[thread_index].start()
         start_trans = True
 
-    elif Usercom.user_comflags == 'abort':
-        sys.exit()
-
     elif Usercom.system_break:
         if not thread_dict[thread_index].is_alive():
+            if Usercom.user_comflags == 'abort':
+                break
             Usercom.system_break = False
             start_trans = False
+
 
     elif start_trans:
         if not thread_dict[thread_index].is_alive():
