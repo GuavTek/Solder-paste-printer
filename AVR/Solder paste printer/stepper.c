@@ -14,7 +14,7 @@ uint8_t start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
 /*sets prescaling of the TCA0 clk*/
 void prescale_select(uint8_t per);
 /*calculates steps.*/
-StepCount Delta(StepCount steps, StepCount laststeps, int coordmode);
+StepCount Delta(StepCount steps, StepCount laststeps, enum CoordMode coordmode);
 /*Sets the direction of the steps*/
 enum DirSet StepDir(int steps);
 
@@ -112,7 +112,7 @@ void PrepStep(void)
 }
 
 
-StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
+StepCount Delta(StepCount steps, StepCount laststeps, enum CoordMode coordmode)
 {
 	StepCount temp;
 	switch(coordmode)
@@ -120,7 +120,7 @@ StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 		case(absolute):
 			
 			temp.full = steps.full - laststeps.full;
-			temp.micro = steps.micro - laststeps.micro;
+			temp.micro = steps.micro;// - laststeps.micro;		//Microstep position is lost when changing to fullstep
 		break;
 		
 		case(incremental):

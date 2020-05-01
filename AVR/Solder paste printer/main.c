@@ -28,16 +28,25 @@ bool prevMotor = false;			//Keeps motor state before error
 
 int main(void)
 {
-	USART_INIT(3, 9600);
 	PORTC.DIRSET = PIN3_bm;	//Motor enable pin
 	PORTC.OUTSET = PIN3_bm;	//Disable motor
+	
+	//Initialize
+	USART_INIT(3, 9600);
 	InitEndSensors();
 	InitClock();
 	InitDispenser();
 	stepper_TCB_init();
-	PORTF.DIRSET = PIN5_bm;	//Onboard LED
-	sei();
+
+	//Onboard LED status indicator
+	PORTF.DIRSET = PIN5_bm;	
+	//PORTF.OUTSET = PIN5_bm;
 	Blinky();
+
+	//Set round-robin interrupt priority
+	ccp_write_io((void*)&CPUINT.CTRLA, CPUINT_LVL0RR_bm);
+	sei();
+	
 	USARTn.TXDATAL = 'o';
 	currentState.state = idle;
     currentState.noError = true;
@@ -45,7 +54,6 @@ int main(void)
     {
 		//Wait for start-character
 		if(RX_available() != BUFFER_EMPTY){
-			PORTF.OUTTGL = PIN5_bm;
 			if (RX_read() == START_CHAR)
 			{
 				Print();
@@ -77,6 +85,8 @@ void Print(void) {
 	timer = 1000;
 	
 	while(1){
+		//PORTF.OUTTGL = PIN5_bm;		//Toggle led to indicate work-load
+
 		if (currentState.noError)
 		{
 			//Normal state
@@ -124,7 +134,7 @@ void Print(void) {
 			//Stops printing and returns to idle mode
 			RTX_FLUSH();
 			PORTC.OUTSET = PIN3_bm;	//Disable motors
-			//Stop stepping
+			//PORTF.OUTSET = PIN5_bm;		//Indicator led
 			return;
 		}
 		

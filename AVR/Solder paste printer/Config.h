@@ -50,7 +50,9 @@
 #define START_CHAR '%'
 #define CMD_RESET '@'
 #define CMD_STATUS_REPORT '?'
-#define CMD_CYCLE_START '~'
+#define CMD_CYCLE_START '|'
+#define CMD_PAUSE 0x9
 #define CMD_ABORT 0x18
+#define CMD_SKIP 0x7F
 
 #endif /* CONFIG_H_ */

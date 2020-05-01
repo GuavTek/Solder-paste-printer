@@ -183,7 +183,7 @@ ReturnCodes ParseStream(){
 	}
 	
 	//Detect word overflow
-	if (wordIndex >= (MAX_WORD_SIZE - 1))
+	if (wordIndex >= MAX_WORD_SIZE)
 	{
 		ReportEvent(BUFFER_OVERFLOW, 'W');
 	} else {
@@ -278,7 +278,6 @@ ReturnCodes ParseWord(){
 						break;
 					}
 					case 4: {
-						//Usually non-modal
 						currentBlock.motion = Dwell;
 						currentBlock.dwellTime = parameter;
 						break;
@@ -312,7 +311,6 @@ ReturnCodes ParseWord(){
 						break;
 					}
 					case 28: {
-						//Usually non-modal
 						currentBlock.motion = Home;
 						break;
 					}
