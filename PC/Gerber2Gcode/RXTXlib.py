@@ -167,20 +167,21 @@ class mcuCom:
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, mcu_code))
 
         elif self.wait_for_num:
-
-
             if 'LINE NR.{}: EXECUTING' in self.num_line:
-                self.num_res += inp
+                self.num_res += inp.decode('utf-8')
                 if inp == b'\n':
                     mcuCom.line += 1
+                    self.num_res = self.num_res.replace('\n', '')
                     pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(self.num_res)))
                     self.num_res = ''
                     mcuCom.mcu_comflags.append(self.num_line)
+                    self.wait_for_num = False
 
             else:
+                mcuCom.line +=1
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(inp)))
-            self.num_line = ''
-            self.wait_for_num = False
+                mcuCom.mcu_comflags.append(self.num_line)
+                self.wait_for_num = False
 
     @classmethod
     def clear_mcuflag(cls, list):
@@ -222,7 +223,7 @@ class mcuCom:
                 elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in mcuCom.mcu_comflags:
                     self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
                     while True:
-                        if 'Buffer ready' in mcuCom.mcu_comflags:
+                        if 'RX BUFFER IS READY TO RECEIVE DATA' in mcuCom.mcu_comflags:
                             self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
                             break
 
@@ -247,12 +248,10 @@ def intSerialport():
     ser.baudrate = baud
     ser.port = "null"
     ser.timeout = 1
-    system_os = ''
-    mcu_desc = ''
     mcu_descdict = {
-        'darwin': 'nEDBG CMSIS-DAP',
-        'win32':  ['Seriell USB-enhet', 'Curiosity virtual COMPORT'],
-        'win64':  ['Seriell USB-enhet', 'Curiosity virtual COMPORT'],
+        'darwin': tuple(('nEDBG CMSIS-DAP')),
+        'win32':  tuple(('Seriell USB-enhet', 'Curiosity Virtual COM Port')),
+        'win64':  tuple(('Seriell USB-enhet', 'Curiosity Virtual COM Port')),
     }
     # Check for connected devices
     x = list(list_ports.comports())
@@ -269,19 +268,21 @@ def intSerialport():
     mcu_desc = mcu_descdict.get(system_os)
 
     # connect to desired device
-    if mcu_desc in y.description:
-        ser.port = y.device
-        s = ser.get_settings()
-        pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
-        pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
-        pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
-        pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
-        pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
-        print('\n')
+    for x in mcu_desc:
+        if x in y.description:
+            ser.port = y.device
+            s = ser.get_settings()
+            pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
+            pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
+            pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
+            pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
+            pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
+            print('\n')
 
 
-    else:
+    if x not in y.description:
         print("device not connected")
+        return
 
     print(">> To show system commands type: <help>")
     # if device was found; communicate
