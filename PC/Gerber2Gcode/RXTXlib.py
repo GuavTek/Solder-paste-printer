@@ -175,12 +175,16 @@ class mcuCom:
                     pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(self.num_res)))
                     self.num_res = ''
                     mcuCom.mcu_comflags.append(self.num_line)
+
+                    self.num_line = ''
                     self.wait_for_num = False
 
             else:
                 mcuCom.line +=1
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(inp)))
                 mcuCom.mcu_comflags.append(self.num_line)
+
+                self.num_line = ''
                 self.wait_for_num = False
 
     @classmethod
@@ -249,9 +253,12 @@ def intSerialport():
     ser.port = "null"
     ser.timeout = 1
     mcu_descdict = {
-        'darwin': tuple(('nEDBG CMSIS-DAP')),
-        'win32':  tuple(('Seriell USB-enhet', 'Curiosity Virtual COM Port')),
-        'win64':  tuple(('Seriell USB-enhet', 'Curiosity Virtual COM Port')),
+
+
+        'darwin': ['nEDBG CMSIS-DAP'],
+        'win32':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port'],
+        'win64':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port'],
+
     }
     # Check for connected devices
     x = list(list_ports.comports())
@@ -280,7 +287,7 @@ def intSerialport():
             print('\n')
 
 
-    if x not in y.description:
+    if x != y.description:
         print("device not connected")
         return
 

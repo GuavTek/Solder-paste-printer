@@ -121,9 +121,17 @@ void RX_write()
 			currentState.noError = true;
 			break;
 		}
+		case CMD_PAUSE: {
+			currentState.noError = false;
+			break;
+		}
 		case CMD_ABORT: {
 			currentState.abortPrint = true;
 			return;
+		}
+		case CMD_SKIP: {
+			currentState.blockFinished = true;
+			break;
 		}
         default:
             if(rx_data > 0x7F)
