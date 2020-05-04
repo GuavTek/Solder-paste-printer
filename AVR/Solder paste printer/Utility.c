@@ -16,7 +16,7 @@ gc_block theCurrentBlock;
 void (*RTC_Callback[8])(void);
 uint16_t RTC_Times[8];			//The time the function should be called
 uint8_t sortedIndex[8];			//The order the functions should be called
-int8_t indexS = 0;				//The index of sortedIndex
+int8_t indexS = 0;				//The index of sortedIndex, counts number of elements in buffer
 uint8_t bAvail = 0xff;			//Bitmask indicates buffer availability
 volatile int8_t triggered = 0;			//The number of functions waiting to be run
 
@@ -131,6 +131,10 @@ void InitClock(){
 	
 	//Debug enable
 	//RTC.DBGCTRL |= RTC_DBGRUN_bm;
+
+	//Set interrupt for running delayed functions
+	PORTE.PIN0CTRL = PORT_ISC_LEVEL_gc;
+	PORTE.DIRSET = PIN0_bm;
 	
 	//Set prescaler and enable RTC
 	RTC.CTRLA = RTC_PRESCALER_DIV1_gc | RTC_RTCEN_bm ;
@@ -147,18 +151,18 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 	}
 		
 	//Convert from milliseconds to periods of 1.024kHz crystal
-	uint32_t tempTime = (waitTime * 24)/1000 + waitTime + RTC.CNT;
-	uint8_t tempIndex;
+	uint32_t newTime = (waitTime * 24)/1000 + waitTime + RTC.CNT;
+	uint8_t newIndex = 0;
 	
 	//Find empty buffer space
 	for (uint8_t i = 0; i < 8; i++)
 	{
 		if (bAvail & 1<<i)
 		{
-			bAvail &= ~(1<<i);
-			RTC_Times[i] = tempTime;
-			RTC_Callback[i] = functionToTrigger;
-			tempIndex = i;
+			bAvail &= ~(1<<i);						//Buffer space occupied
+			RTC_Times[i] = newTime;					//Save wake-up time
+			RTC_Callback[i] = functionToTrigger;	//Save function to wake up
+			newIndex = i;
 			break;	
 		}
 	}
@@ -167,39 +171,37 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 	if (indexS > 0)
 	{
 		//Sort which interrupt should occur first
-		uint16_t currentTime = RTC.CNT;
-		tempTime -= currentTime;
-		for (int8_t i = indexS; i >= 0; i--)
-		{
-			//Nothing more to compare
-			if (i == 0)
-			{
-				sortedIndex[0] = tempIndex;
-				break;
-			}
+		//Uses a modified insertion sort
 
+		uint16_t currentTime = RTC.CNT;
+		newTime -= currentTime;
+		int8_t i;		//Start with rightmost element
+
+		//Move all the shorter times further out in buffer
+		for (i = indexS; i > 0; i--)
+		{
 			//Compare time in buffer with new time
 			uint16_t compTime = RTC_Times[sortedIndex[i-1]] - currentTime;
-			if (compTime < tempTime)
+			if (compTime < newTime)
 			{
-				//Move element in buffer
 				sortedIndex[i] = sortedIndex[i-1];
 			} else {
-				//Place the new element
-				sortedIndex[i] = tempIndex;
-
-				//Set wait-time
-				while(RTC.STATUS & RTC_CMPBUSY_bm){}
-				RTC.CMP = RTC_Times[sortedIndex[indexS]];
-				
+				//Found the correct index
 				break;
 			}
 		}
+
+		sortedIndex[i] = newIndex;
+
 	} 
 	else
 	{
-		sortedIndex[0] = tempIndex;
-		
+		sortedIndex[0] = newIndex;
+	}
+
+
+	if (sortedIndex[indexS] == newIndex)
+	{
 		//Set wait-time
 		while(RTC.STATUS & RTC_CMPBUSY_bm){}
 		RTC.CMP = RTC_Times[sortedIndex[indexS]];
@@ -255,4 +257,7 @@ ISR(RTC_CNT_vect){
 		//Disable interrupt
 		RTC.INTCTRL &= ~RTC_CMP_bm;
 	}
+
+	//Trigger pin interrupt
+	PORTE.OUTCLR = PIN0_bm;
 }
