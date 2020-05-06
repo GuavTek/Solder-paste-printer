@@ -10,8 +10,8 @@
 //Primary loop when printing
 void Print(void);
 
-//Initialize sensors that detect the edge of printer
-void InitEndSensors();
+//Initialize interrupt settings
+void InterruptInit();
 
 //Start excecuting a new block
 void GetNewBlock();
@@ -28,16 +28,22 @@ bool prevMotor = false;			//Keeps motor state before error
 
 int main(void)
 {
-	USART_INIT(3, 9600);
 	PORTC.DIRSET = PIN3_bm;	//Motor enable pin
 	PORTC.OUTSET = PIN3_bm;	//Disable motor
+	
+	//Initialize
+	USART_INIT(3, 9600);
 	InitEndSensors();
 	InitClock();
 	InitDispenser();
 	stepper_TCB_init();
-	PORTF.DIRSET = PIN5_bm;	//Onboard LED
-	sei();
+	InterruptInit();
+
+	//Onboard LED status indicator
+	PORTF.DIRSET = PIN5_bm;	
+//	PORTF.OUTSET = PIN5_bm;
 	Blinky();
+	
 	USARTn.TXDATAL = 'o';
 	currentState.state = idle;
     currentState.noError = true;
@@ -45,7 +51,6 @@ int main(void)
     {
 		//Wait for start-character
 		if(RX_available() != BUFFER_EMPTY){
-			PORTF.OUTTGL = PIN5_bm;
 			if (RX_read() == START_CHAR)
 			{
 				Print();
@@ -53,7 +58,6 @@ int main(void)
 				currentState.state = idle;
 			}
 		}
-		RunDelayedFunctions();
     }
 }
 
@@ -77,6 +81,8 @@ void Print(void) {
 	timer = 1000;
 	
 	while(1){
+//		PORTF.OUTTGL = PIN5_bm;		//Toggle led to indicate work-load
+
 		if (currentState.noError)
 		{
 			//Normal state
@@ -112,8 +118,6 @@ void Print(void) {
 				TCA0.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
 			}
 		}
-		
-		RunDelayedFunctions();
 
 		if (currentState.statusDump)
 		{
@@ -123,8 +127,8 @@ void Print(void) {
 		if(currentState.abortPrint){
 			//Stops printing and returns to idle mode
 			RTX_FLUSH();
-			PORTC.OUTSET = PIN3_bm;	//Disable motors
-			//Stop stepping
+			PORTC.OUTSET = PIN3_bm;		//Disable motors
+			PORTF.OUTSET = PIN5_bm;		//Indicator led
 			return;
 		}
 		
@@ -193,3 +197,28 @@ void EndDwell(){
 	ReportEvent(DWELL_FINISHED,0);
 }
 
+void InterruptInit (){
+	//Set round-robin interrupt priority
+	//ccp_write_io((void*)&CPUINT.CTRLA, CPUINT_LVL0RR_bm);
+
+	//Interrupt priority
+	CPUINT.LVL1VEC = 0x4A;	//UART RX is highest priority
+	//RTC
+	//TCB0	(X-axis)
+	//TCB1	(Y-axis)
+	//PORTD	(End-sensors)
+	//PORTC	(End-sensors)
+	//TCB2	(Z-axis)
+	//PORTE (Delay)
+	//UART TX
+
+	sei();
+}
+
+ISR(PORTE_PORT_vect){
+	RunDelayedFunctions();
+
+	//Clear pin interrupt
+	PORTE.OUTSET = PIN0_bm;
+	PORTE.INTFLAGS = PIN0_bm;
+}

@@ -33,6 +33,9 @@ void HomingRoutine(enum MotionModes);
 
 void StepperInit(void);
 
+//Sets up interrupts for end-sensors
+void InitEndSensors();
+
 /*Step ready flags */
 #define X_MSTEP_READY    0
 #define Y_MSTEP_READY    1

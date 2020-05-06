@@ -14,7 +14,7 @@ uint8_t start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
 /*sets prescaling of the TCA0 clk*/
 void prescale_select(uint8_t per);
 /*calculates steps.*/
-StepCount Delta(StepCount steps, StepCount laststeps, int coordmode);
+StepCount Delta(StepCount steps, StepCount laststeps, enum CoordMode coordmode);
 /*Sets the direction of the steps*/
 enum DirSet StepDir(int steps);
 
@@ -67,7 +67,6 @@ void PrepStep(void)
 			st.steps.x.micro = abs(delta.x.micro);
 			st.stepflag.ready |= (1 << X_MSTEP_READY);
 			st.stepflag.settings |= (1 << X_MSTEP_SET);
-			st.last_pos.x.micro = theCurrentBlock.pos.x.micro;
 			st.counter.x.micro = 1;
 		}
 		
@@ -84,7 +83,6 @@ void PrepStep(void)
 			st.steps.y.micro = abs(delta.y.micro);
 			st.stepflag.ready |= (1 << Y_MSTEP_READY);
 			st.stepflag.settings |= (1 << Y_MSTEP_SET);
-			st.last_pos.y.micro = theCurrentBlock.pos.y.micro;
 			st.counter.y.micro = 1;
 		}
 		
@@ -112,7 +110,7 @@ void PrepStep(void)
 }
 
 
-StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
+StepCount Delta(StepCount steps, StepCount laststeps, enum CoordMode coordmode)
 {
 	StepCount temp;
 	switch(coordmode)
@@ -120,7 +118,7 @@ StepCount Delta(StepCount steps, StepCount laststeps, int coordmode)
 		case(absolute):
 			
 			temp.full = steps.full - laststeps.full;
-			temp.micro = steps.micro - laststeps.micro;
+			temp.micro = steps.micro;// - laststeps.micro;		//Microstep position is lost when changing to fullstep
 		break;
 		
 		case(incremental):
@@ -163,6 +161,7 @@ void StepperInit(void)
 	st.steps.y.micro = 0;
 	
 	st.stepflag.line =  (1 << X_LINE_EXE) | (1 << Y_LINE_EXE);
+	start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
 	st.stepflag.ready = 0;
 	st.stepflag.settings = 0;
 	
@@ -174,6 +173,9 @@ void StepperInit(void)
 	PORTD.DIRSET = PIN4_bm;
 	PORTC.DIRSET = PIN7_bm;
 	PORTC.DIRSET = PIN1_bm;
+	
+	PORTC.DIRSET = PIN2_bm;
+	PORTA.DIRSET = PIN5_bm;
 }
 
 
@@ -208,8 +210,6 @@ void HomingRoutine(enum MotionModes motion)
 		
 		StepperInit();
 		
-		start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
-		
 		TCB0.CTRLB |= TCB_CCMPEN_bm;
 		TCB1.CTRLB |= TCB_CCMPEN_bm;
 		TCB0.INTCTRL &= ~TCB_CAPT_bm;
@@ -224,37 +224,37 @@ void MotorPrescaleSet(uint8_t motor_presc)
 	{
 		case 1:
 		{
-			PORTD.OUT &= ~PIN4_bm;
-			PORTC.OUT &= ~PIN7_bm;
-			PORTC.OUT &= ~PIN1_bm;
+			PORTD.OUTCLR = PIN4_bm;
+			PORTC.OUTCLR = PIN7_bm;
+			PORTC.OUTCLR = PIN1_bm;
 			break;
 		}
 		case 2:
 		{
-			PORTD.OUT |= PIN4_bm;
-			PORTC.OUT &= ~PIN7_bm;
-			PORTC.OUT &= ~PIN1_bm;
+			PORTD.OUTSET = PIN4_bm;
+			PORTC.OUTCLR = PIN7_bm;
+			PORTC.OUTCLR =  PIN1_bm;
 			break;
 		}
 		case 4:
 		{
-			PORTD.OUT &= ~PIN4_bm;
-			PORTC.OUT |= PIN7_bm;
-			PORTC.OUT &= ~PIN1_bm;
+			PORTD.OUTCLR = PIN4_bm;
+			PORTC.OUTSET = PIN7_bm;
+			PORTC.OUTCLR = PIN1_bm;
 			break;
 		}
 		case 8:
 		{
-			PORTD.OUT |= PIN4_bm;
-			PORTC.OUT |= PIN7_bm;
-			PORTC.OUT &= ~PIN1_bm;
+			PORTD.OUTSET = PIN4_bm;
+			PORTC.OUTSET = PIN7_bm;
+			PORTC.OUTCLR = PIN1_bm;
 			break;
 		}
 		case 16:
 		{
-			PORTD.OUT |= PIN4_bm;
-			PORTC.OUT |= PIN7_bm;
-			PORTC.OUT |= PIN1_bm;
+			PORTD.OUTSET = PIN4_bm;
+			PORTC.OUTSET = PIN7_bm;
+			PORTC.OUTSET = PIN1_bm;
 			break;
 		}
 		default:
@@ -304,7 +304,7 @@ void LinFeedRateCalc(uint16_t speed, uint16_t x, uint16_t y, uint8_t prescale)
 }
 
 
-void PerCalc(float *temp, uint8_t prescale)
+void PerCalc(float temp[2], uint8_t prescale)
 { 
 	uint16_t comp[2];
 	
@@ -331,7 +331,6 @@ void PerCalc(float *temp, uint8_t prescale)
 				st.step_speed.micro_speed[0] = comp[0];
 				st.step_speed.micro_speed[1] = comp[1];
 			}
-			return;
 		}
 	}
 }
@@ -356,11 +355,13 @@ void FeedRateSet(uint16_t speed, StepCount x, StepCount y, enum MotionModes movm
 			break;
 		case(Rapid_position):
 			calc_val[0] = calc_val[1] = fCLK_MMS/speed;
-			PerCalc(calc_val, 1);					
+			PerCalc(calc_val, 1);
+			PerCalc(calc_val, 0);					
 			break;
 		default:
-			calc_val[0] = calc_val[1] = fCLK_MMS/1;
+			calc_val[0] = calc_val[1] = fCLK_MMS/3;
 			PerCalc(calc_val, 1);
+			PerCalc(calc_val, 0);
 			break;
 	}
 }
@@ -382,14 +383,14 @@ void stepper_TCB_init(void)
 {
 	//enable TCB0
 	//all counter registers set to 50% dutycycle
-	TCB0.CTRLA = TCB_CLKSEL_CLKTCA_gc | TCB_ENABLE_bm;
+	TCB0.CTRLA |= TCB_CLKSEL_CLKTCA_gc | TCB_ENABLE_bm;
 	TCB0.CTRLB |= TCB_CNTMODE_PWM8_gc;
 	TCB0.INTCTRL = TCB_CAPT_bm;
 	TCB0.CCMPL = 0xFF;
 	TCB0.CCMPH = 0x80;
 	
 	//enable TCB1
-	TCB1.CTRLA = TCB_CLKSEL_CLKTCA_gc | TCB_ENABLE_bm;
+	TCB1.CTRLA |= TCB_CLKSEL_CLKTCA_gc | TCB_ENABLE_bm;
 	TCB1.CTRLB |= TCB_CNTMODE_PWM8_gc;
 	TCB1.INTCTRL = TCB_CAPT_bm;
 	TCB1.CCMPL = 0xFF;
@@ -404,15 +405,14 @@ void stepper_TCB_init(void)
 // 	TCB2.CTRLB |= TCB_CNTMODE_PWM8_gc;
 // 	TCB2.CCMP = 0x80FF;
 
-	PORTC.DIRSET |= PIN2_bm;
-	PORTA.DIRSET |= PIN5_bm;
+	
 }
 
 
 void prescale_select(uint8_t sel)
 {
-	TCA0.SINGLE.PER |= 255;
 	TCA0.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
+	TCA0.SINGLE.PER |= 255;
 	switch (sel)
 	{
 		case(0):
@@ -473,11 +473,11 @@ ISR(TCB0_INT_vect) //TCB0 vector
 			switch(st.direction.x_full)
 			{
 				case(pos_dir):
-				PORTC.OUT |= PIN2_bm;
+				PORTC.OUTSET = PIN2_bm;
 				break;
 				
 				case(neg_dir):
-				PORTC.OUT &= ~PIN2_bm;
+				PORTC.OUTCLR = PIN2_bm;
 				break;
 			}
 			
@@ -502,7 +502,7 @@ ISR(TCB0_INT_vect) //TCB0 vector
 		}
 	}
 	
-	else if(st.stepflag.ready & (1 << X_MSTEP_READY))
+	else if(st.stepflag.ready & (1 << X_MSTEP_READY) && !(st.stepflag.ready & (1 << Y_FSTEP_READY)))
 	{
 		if(st.stepflag.settings & (1 << X_MSTEP_SET))
 		{
@@ -513,11 +513,11 @@ ISR(TCB0_INT_vect) //TCB0 vector
 			switch(st.direction.x_full)
 			{
 				case(pos_dir):
-				PORTC.OUT |= PIN2_bm;
+				PORTC.OUTSET = PIN2_bm;
 				break;
 				
 				case(neg_dir):
-				PORTC.OUT &= ~PIN2_bm;
+				PORTC.OUTCLR = PIN2_bm;
 				break;
 			}
 			
@@ -541,12 +541,13 @@ ISR(TCB0_INT_vect) //TCB0 vector
 			st.counter.x.micro++;
 		}
 	}
-	else
+	else if (!(st.stepflag.ready & (1 << X_FSTEP_READY) & (1 << X_MSTEP_READY)))
 	{
 		st.stepflag.line |= (1 << X_LINE_EXE);
 		if(st.stepflag.line & (1 << X_LINE_EXE) && st.stepflag.line & (1 << Y_LINE_EXE) && currentState.blockFinished == false)
 		{
 			currentState.blockFinished = true;
+			TCA0.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
 		}
 		
 		TCB0.INTCTRL &= ~TCB_CAPT_bm;
@@ -569,10 +570,10 @@ ISR(TCB1_INT_vect) //TCB1 vector
 			switch(st.direction.y_full)
 			{
 				case(pos_dir):
-				PORTA.OUT |= PIN5_bm;
+				PORTA.OUTSET = PIN5_bm;
 				break;
 				case(neg_dir):
-				PORTA.OUT &= ~PIN5_bm;
+				PORTA.OUTCLR = PIN5_bm;
 				break;
 			}
 			
@@ -594,7 +595,7 @@ ISR(TCB1_INT_vect) //TCB1 vector
 			st.counter.y.full++;
 		}
 	}
-	else if(st.stepflag.ready & (1 << Y_MSTEP_READY))
+	else if(st.stepflag.ready & (1 << Y_MSTEP_READY) && !(st.stepflag.ready & (1 << X_FSTEP_READY)))
 	{
 		if(st.stepflag.settings & (1 << Y_MSTEP_SET))
 		{
@@ -602,13 +603,13 @@ ISR(TCB1_INT_vect) //TCB1 vector
 			
 			MotorPrescaleSet(16);
 			
-			switch(st.direction.y_full)
+			switch(st.direction.y_micro)
 			{
 				case(pos_dir):
-				PORTA.OUT |= PIN5_bm;
+				PORTA.OUTSET = PIN5_bm;
 				break;
 				case(neg_dir):
-				PORTA.OUT &= ~PIN5_bm;
+				PORTA.OUTCLR = PIN5_bm;
 				break;
 			}
 			
@@ -631,13 +632,14 @@ ISR(TCB1_INT_vect) //TCB1 vector
 		}
 	}
 	
-	else
+	else if (!(st.stepflag.ready & (1 << Y_FSTEP_READY) & (1 << Y_MSTEP_READY)))
 	{
 		st.stepflag.line |= (1 << Y_LINE_EXE);
 		
 		if(st.stepflag.line & (1 << X_LINE_EXE) && st.stepflag.line & (1 << Y_LINE_EXE) && currentState.blockFinished == false)
 		{
 			currentState.blockFinished = true;
+			TCA0.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
 		}
 		TCB1.INTCTRL &= ~TCB_CAPT_bm;
 	}
@@ -657,19 +659,11 @@ ISR(PORTC_PORT_vect){
 		if (PORTC.IN & PIN5_bm)
 		{
 			//Entering end-sensor
-			/*if(start_pos & (1 << START_POS_Y))
-			{
-				TCB1.CTRLB |= TCB_CCMPEN_bm;
-				TCB1.INTCTRL &= ~TCB_CAPT_bm;
-			}
-			else
-			{
-				TCB1.CTRLB &= ~TCB_CCMPEN_bm;
-				start_pos |= (1 << START_POS_Y);
-			}*/
-			
+			TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+			start_pos |= (1 << START_POS_Y);
+ 			
 			//Reverse Y direction
-			PORTA.OUTSET = PIN5_bm;
+			
 		} 
 		else
 		{
@@ -684,6 +678,7 @@ ISR(PORTC_PORT_vect){
 		{
 			currentState.noError = false;
 			ReportEvent(UNEXPECTED_EDGE, 'Y');
+			TCB1.CTRLB &= ~TCB_CCMPEN_bm;
 		} else {
 			if(start_pos == 0) {
 				currentState.blockFinished = true;
@@ -693,34 +688,29 @@ ISR(PORTC_PORT_vect){
 	}
 }
 
+
+
 ISR(PORTD_PORT_vect){
+	
 	if (PORTD.INTFLAGS & PIN2_bm)
 	{
 		//X-axis end detected
 		if (PORTD.IN & PIN2_bm)
 		{
 			//Entering edge sensor
-			/*if(start_pos & (1 << START_POS_X))
-			{
-				TCB0.CTRLB |= TCB_CCMPEN_bm;
-				TCB0.INTCTRL &= ~TCB_CAPT_bm;
-			}
-			else
-			{
-				TCB0.CTRLB &= ~TCB_CCMPEN_bm;
-				start_pos |= (1 << START_POS_X);
-			}*/
-			
-			//Reverse X
-			PORTC.OUTSET = PIN2_bm;
+			//Disable TCB0 PWM output on PA2
+			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+			//Reset the start position flag
+			start_pos |= (1 << START_POS_X);
 		}
+		//Leaving edge sensor
 		else
 		{
-			//Leaving edge sensor
-			
-			//Stop X stepping
-			start_pos &= ~(1 << START_POS_X);
+			//Disable TCB0 PWM output on PA2
 			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+			//Clear the start position flag
+			start_pos &= ~(1 << START_POS_X);
+				
 		}
 
 		//Log unexpected end trigger, and halt printing
@@ -728,6 +718,9 @@ ISR(PORTD_PORT_vect){
 		{
 			currentState.noError = false;
 			ReportEvent(UNEXPECTED_EDGE, 'X');
+			//Disable TCB0 PWM output on PA2
+			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+			
 		} else {
 			if(start_pos == 0) {
 				currentState.blockFinished = true;

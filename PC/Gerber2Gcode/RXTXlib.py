@@ -127,7 +127,13 @@ class UserCom:
 
 class mcuCom:
     mcu_comflags = []
-    mcu_com_num = [b'N', b'L', b'E', b'H', b'O', b'F']
+    mcu_com_withnum = [b'N', b'L', b'E', b'H', b'O', b'F']
+    mcu_com_num = {
+        b'R' : 'RX',
+        b'B' : 'Blockbuffer',
+        b'W' : 'Blockbuffer Word Overflow'
+    }
+
     line = 0
     line_flag = 0
     last_line_flag = 0
@@ -136,9 +142,9 @@ class mcuCom:
 
     mcu_commands = {
         b'N': 'INSTRUCTION NR.{}: G-CODE COMMAND NOT RECOGNIZED!',
-        b'E': 'INSTRUCTION NR.{}: UNEXPECTED EDGE!',
-        b'O': 'INSTRUCTION NR.{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)',
-        b'F': 'INSTRUCTION NR.{}: BUFFER FULL! WAITING FOR LINES STORED IN BUFFER TO BE EXECUTED',
+        b'E': 'UNEXPECTED EDGE ON {} AXIS!',
+        b'O': '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)',
+        b'F': '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED',
         b'A': 'BUFFER READY TO RECEIVE DATA',
         b'S': 'STOP DETECTED!',
         b'H': 'INSTRUCTION LINE NR.{}: SHORT WORD.',
@@ -156,8 +162,8 @@ class mcuCom:
     def __call__(self, inp):
         mcu_code = self.mcu_commands.get(inp, 'None')
 
-        if inp in self.mcu_commands.keys():
-            if inp in self.mcu_com_num:
+        if inp in self.mcu_commands.keys() and not mcuCom.wait_for_num:
+            if inp in self.mcu_com_withnum:
                 self.wait_for_num = True
                 self.num_line = mcu_code
 
@@ -167,21 +173,24 @@ class mcuCom:
                 pp.pprint(mcuCom.console_txt.format(mcuCom.line, mcu_code))
 
         elif self.wait_for_num:
-
-
             if 'LINE NR.{}: EXECUTING' in self.num_line:
                 self.num_res += inp.decode('utf-8')
                 if inp == b'\n':
                     mcuCom.line += 1
+                    self.num_res = self.num_res.replace('\n', '')
                     pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(self.num_res)))
                     self.num_res = ''
                     mcuCom.mcu_comflags.append(self.num_line)
+
                     self.num_line = ''
                     self.wait_for_num = False
 
             else:
-                pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(inp)))
+                mcuCom.line +=1
+                self.num_res = self.mcu_com_num.get(inp, inp.decode('utf-8'))
+                pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(self.num_res)))
                 mcuCom.mcu_comflags.append(self.num_line)
+
                 self.num_line = ''
                 self.wait_for_num = False
 
@@ -250,12 +259,13 @@ def intSerialport():
     ser.baudrate = baud
     ser.port = "null"
     ser.timeout = 1
-    system_os = ''
-    mcu_desc = ''
     mcu_descdict = {
+
+
         'darwin': ['nEDBG CMSIS-DAP'],
-        'win32':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port'],
-        'win64':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port'],
+        'win32':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
+        'win64':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
+
     }
     # Check for connected devices
     x = list(list_ports.comports())
@@ -284,8 +294,9 @@ def intSerialport():
             print('\n')
 
 
-    if x != y.description:
+    if x not in y.description:
         print("device not connected")
+        return
 
     print(">> To show system commands type: <help>")
     # if device was found; communicate
@@ -324,11 +335,10 @@ def TX_routine(data):
             TX = bytes(x, 'utf-8')
             if (TX != b' ' or TX != ''):
                 ser.write(TX)
-
                 if User_commands.system_break:
                     return
                 MCU_commands.comflag_state(x)
-
+        ser.write(b'\n')
         break
 
 
