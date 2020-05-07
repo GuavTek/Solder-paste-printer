@@ -126,6 +126,7 @@ class UserCom:
         cls.new_command = False
 
 class mcuCom:
+
     mcu_comflags = []
     mcu_com_withnum = [b'N', b'L', b'E', b'H', b'O', b'F']
     mcu_com_num = {
@@ -155,44 +156,83 @@ class mcuCom:
         b'a': 'RX BUFFER IS READY TO RECEIVE DATA'
     }
     mcu_values = list(mcu_commands.values())
+
     def __init__(self):
         self.num_line = ''
         self.num_res = ''
 
     def __call__(self, inp):
-        mcu_code = self.mcu_commands.get(inp, 'None')
 
-        if inp in self.mcu_commands.keys() and not mcuCom.wait_for_num:
+        res_mcu_com = self.mcu_commands.get(inp, 'None')
+
+        if inp in self.mcu_commands.keys() and not self.wait_for_num:
             if inp in self.mcu_com_withnum:
                 self.wait_for_num = True
-                self.num_line = mcu_code
+                self.num_line = res_mcu_com
 
             else:
-                mcuCom.line += 1
-                mcuCom.mcu_comflags.append(mcu_code)
-                pp.pprint(mcuCom.console_txt.format(mcuCom.line, mcu_code))
+                self.line += 1
+                self.res_mcucom_append(res_mcu_com)
+                pp.pprint(self.console_txt.format(self.line, res_mcu_com))
 
         elif self.wait_for_num:
             if 'LINE NR.{}: EXECUTING' in self.num_line:
                 self.num_res += inp.decode('utf-8')
                 if inp == b'\n':
-                    mcuCom.line += 1
+                    self.line += 1
                     self.num_res = self.num_res.replace('\n', '')
-                    pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(self.num_res)))
+                    pp.pprint(self.console_txt.format(self.line, self.num_line.format(self.num_res)))
+                    self.res_mcucom_append(self.num_line)
                     self.num_res = ''
-                    mcuCom.mcu_comflags.append(self.num_line)
-
                     self.num_line = ''
                     self.wait_for_num = False
 
             else:
-                mcuCom.line +=1
+                self.line += 1
                 self.num_res = self.mcu_com_num.get(inp, inp.decode('utf-8'))
-                pp.pprint(mcuCom.console_txt.format(mcuCom.line, self.num_line.format(self.num_res)))
-                mcuCom.mcu_comflags.append(self.num_line)
-
+                pp.pprint(self.console_txt.format(self.line, self.num_line.format(self.num_res)))
+                self.res_mcucom_append(self.num_line)
                 self.num_line = ''
                 self.wait_for_num = False
+
+
+    def comflag_state(self, data):
+        if 'N' in data:
+            self.line_flag += 1
+
+        if data == '\n':
+            while True:
+                if self.system_break:
+                    return
+
+                elif self.system_pause:
+                    while True:
+                        if not self.system_pause:
+                            break
+
+                elif ('DATA RECEIVED!') in self.mcu_comflags:
+                    clear_mcuflag('DATA RECEIVED!')
+                    break
+
+                elif self.line_flag >= 2 and self.line_flag > self.last_line_flag:
+                    while self.last_line_flag != self.line_flag:
+                        if self.system_break:
+                            return
+
+                        elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
+                            self.clear_mcuflag('LINE NR.{}: EXECUTING')
+                            self.last_line_flag += 1
+
+                elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in mcuCom.mcu_comflags:
+                    self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
+                    while True:
+                        if 'RX BUFFER IS READY TO RECEIVE DATA' in self.mcu_comflags:
+                           self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
+                            break
+
+    @classmethod
+    def res_mcucom_append(cls, mcu_command):
+        cls.mcu_comflags.append(mcu_command)
 
     @classmethod
     def clear_mcuflag(cls, list):
@@ -206,37 +246,7 @@ class mcuCom:
         cls.line_flag = 0
         cls.last_line_flag = 0
 
-    def comflag_state(self, data):
-        if 'N' in data:
-            self.line_flag += 1
 
-        if data == '\n':
-            while True:
-                if UserCom.system_break:
-                    return
-
-                elif UserCom.system_pause:
-                    while True:
-                        if not UserCom.system_pause:
-                            break
-                elif ('DATA RECEIVED!') in self.mcu_comflags:
-                    self.clear_mcuflag('DATA RECEIVED!')
-                    break
-
-                elif self.line_flag >= 2 and self.line_flag > self.last_line_flag:
-                    while self.last_line_flag != self.line_flag:
-                        if UserCom.system_break:
-                            return
-                        elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
-                            self.clear_mcuflag('LINE NR.{}: EXECUTING')
-                            self.last_line_flag += 1
-
-                elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in mcuCom.mcu_comflags:
-                    self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
-                    while True:
-                        if 'RX BUFFER IS READY TO RECEIVE DATA' in mcuCom.mcu_comflags:
-                            self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
-                            break
 
 
 class Serial_routine(threading.Thread):

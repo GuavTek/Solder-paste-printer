@@ -1,5 +1,4 @@
 import RXTXlib
-import sys
 from KeyInput import int_keyboard
 uart = RXTXlib
 
