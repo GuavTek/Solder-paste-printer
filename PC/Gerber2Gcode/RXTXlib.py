@@ -15,7 +15,7 @@ class UserCom:
     data = ''
     data_name = ''
     system_break = False
-    system_pause = None
+    system_pause = False
     user_commands = {
         "run": "%",
         "reset": "@",
@@ -64,8 +64,8 @@ class UserCom:
                 com_send = bytes(user_message, 'utf-8')
                 ser.cancel_write()
                 ser.write(com_send)
-                UserCom.user_comflags = user_inp
-                UserCom.reset()
+                UserCom.system_break = True
+
 
             elif user_message == "?":
                 pp.pprint('Current settings are: ')
@@ -93,8 +93,7 @@ class UserCom:
                     ser.open()
 
                 if user_inp == "reset":
-                    UserCom.reset()
-                    mcuCom.reset()
+                    UserCom.system_break = True
                     pp.pprint(self.system_promt.format(user_inp))
 
                 UserCom.user_comflags = user_inp
@@ -103,11 +102,12 @@ class UserCom:
 
     @classmethod
     def reset(cls):
-        cls.data_name = ''
-        cls.data = ''
-        cls.user_comflags = ''
-        cls.system_break = True
         cls.new_command = False
+        cls.user_comflags = ''
+        cls.data = ''
+        cls.data_name = ''
+        cls.system_break = False
+        cls.system_pause = False
 
     @classmethod
     def add_commands(cls, key, value):
@@ -202,7 +202,6 @@ class mcuCom:
         if data == '\n':
             while True:
                 if cls.system_break:
-                    cls.system_break = False
                     return
 
                 elif UserCom.system_pause:
@@ -228,7 +227,7 @@ class mcuCom:
                     while True:
                         if 'RX BUFFER IS READY TO RECEIVE DATA' in cls.mcu_comflags:
                             cls.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
-                            break
+                            return
                 elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in cls.mcu_comflags:
                     cls.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
                     break
@@ -238,7 +237,7 @@ class mcuCom:
 
                 elif 'UNEXPECTED EDGE ON {} AXIS!' in cls.mcu_comflags:
                     cls.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
-
+                    break
 
     @classmethod
     def command_print(cls, message):
@@ -257,11 +256,12 @@ class mcuCom:
     @classmethod
     def reset(cls):
         cls.num_line = False
-        cls.system_break = True
         cls.line = 0
         cls.mcu_comflags.clear()
         cls.line_flag = 0
         cls.last_line_flag = 0
+        cls.num_line = ''
+        cls.num_res = ''
 
 
 class Serial_routine(threading.Thread):
@@ -349,7 +349,6 @@ def RX_routine():
 
 def TX_routine(data):
     MCU_commands = mcuCom()
-    User_commands = UserCom()
 
     # prepearing a line to be sent
     while True:
@@ -360,7 +359,7 @@ def TX_routine(data):
             TX = bytes(x, 'utf-8')
             if (TX != b' ' or TX != ''):
                 ser.write(TX)
-                if User_commands.system_break:
+                if UserCom.system_break:
                     return
                 MCU_commands.comflag_state(x)
         ser.write(b'\n')

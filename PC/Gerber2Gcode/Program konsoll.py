@@ -20,9 +20,8 @@ while True:
 
     elif Usercom.system_break:
         if not thread_dict[thread_index].is_alive():
-            if Usercom.user_comflags == 'abort':
-                break
-            Usercom.system_break = False
+            Mcucom.reset()
+            Usercom.reset()
             start_trans = False
 
 
@@ -31,5 +30,3 @@ while True:
             start_trans = False
             Mcucom.reset()
             Usercom.reset()
-            print(Usercom.user_comflags)
-            Usercom.system_break = False
