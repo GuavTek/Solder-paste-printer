@@ -48,7 +48,7 @@ The feedrate get calculated coorespondig to the type of movement defined in the 
 void PrepStep(void)
 {
     StepVector3 delta;	  
-    if(st.stepflag.line & (1 << X_LINE_EXE) && st.stepflag.line & (1 << Y_LINE_EXE) && currentState.blockFinished == true)
+    if(st.stepflag.line & (1 << X_LINE_EXE) && st.stepflag.line & (1 << Y_LINE_EXE)); //&& currentState.blockFinished == true)
     {
         /*Set blockFinished to false, this ensure that the MCU only executes instruction sets one by one*/
 		currentState.blockFinished = false;
