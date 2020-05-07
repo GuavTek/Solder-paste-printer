@@ -64,7 +64,7 @@ void PrepStep(void)
         calculate the feedrate, set the stepping direction and set the corresponding step flags
         If delta returns non zero data sets, the steps to be excutetd gets stored in the 'st' block, steping direction is set,
         step flag is set, step data that comes directly from 'theCurrentBlock' gets stored as last position and the counter variables is reset to 1*/
-        if(!(delta.x.full == 0 || delta.y.full == 0 || delta.x.micro == 0 || delta.y.micro == 0))
+        if(delta.x.full != 0 || delta.y.full != 0 || delta.x.micro != 0 || delta.y.micro != 0))
         {
             if(!(delta.x.full == 0))
             {
