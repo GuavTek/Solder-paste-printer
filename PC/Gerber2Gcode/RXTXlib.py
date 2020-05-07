@@ -238,7 +238,7 @@ class mcuCom:
                     cls.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
                     break
 
-                    
+
     @classmethod
     def command_print(cls, message):
         cls.line += 1
@@ -316,7 +316,7 @@ def intSerialport():
             pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
             pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
             print('\n')
-
+            break
 
     if x not in y.description:
         print("device not connected")
