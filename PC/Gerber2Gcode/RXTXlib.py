@@ -139,8 +139,6 @@ class mcuCom:
     line_flag = 0
     last_line_flag = 0
     wait_for_num = False
-    system_break = False
-    system_pause = False
     console_txt = '{}. MCU system: {}'
 
     mcu_commands = {
@@ -207,9 +205,9 @@ class mcuCom:
                     cls.system_break = False
                     return
 
-                elif cls.system_pause:
+                elif UserCom.system_pause:
                     while True:
-                        if not cls.system_pause:
+                        if not UserCom.system_pause:
                             break
 
                 elif ('DATA RECEIVED!') in cls.mcu_comflags:
@@ -218,7 +216,7 @@ class mcuCom:
 
                 elif cls.line_flag >= 2 and cls.line_flag > cls.last_line_flag:
                     while cls.last_line_flag != cls.line_flag:
-                        if cls.system_break:
+                        if UserCom.system_break:
                             return
 
                         elif 'LINE NR.{}: EXECUTING' in cls.mcu_comflags:
@@ -237,6 +235,9 @@ class mcuCom:
                 elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED' in cls.mcu_comflags:
                     cls.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
                     break
+
+                elif 'UNEXPECTED EDGE ON {} AXIS!' in cls.mcu_comflags:
+                    cls.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
 
 
     @classmethod
