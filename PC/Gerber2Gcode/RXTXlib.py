@@ -172,7 +172,6 @@ class mcuCom:
                 self.num_line = res_mcu_com
 
             else:
-                self.line += 1
                 self.res_mcucom_append(res_mcu_com)
                 self.command_print(res_mcu_com)
 
@@ -180,7 +179,6 @@ class mcuCom:
             if 'LINE NR.{}: EXECUTING' in self.num_line:
                 self.num_res += inp.decode('utf-8')
                 if inp == b'\n':
-                    self.line += 1
                     self.num_res = self.num_res.replace('\n', '')
                     self.num_res = self.num_line.format(self.num_res)
                     self.command_print(self.num_res)
@@ -190,12 +188,12 @@ class mcuCom:
                     self.wait_for_num = False
 
             else:
-                self.line += 1
                 self.num_res = self.mcu_com_num.get(inp, inp.decode('utf-8'))
                 self.num_res = self.num_line.format(self.num_res)
                 self.command_print(self.num_res)
                 self.res_mcucom_append(self.num_line)
                 self.num_line = ''
+                self.num_res = ''
                 self.wait_for_num = False
 
     @classmethod
@@ -233,6 +231,14 @@ class mcuCom:
                         if 'RX BUFFER IS READY TO RECEIVE DATA' in cls.mcu_comflags:
                             cls.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
                             break
+                elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in cls.mcu_comflags:
+                    cls.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
+                    break
+                elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED' in cls.mcu_comflags:
+                    cls.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
+                    break
+
+                    
     @classmethod
     def command_print(cls, message):
         cls.line += 1
