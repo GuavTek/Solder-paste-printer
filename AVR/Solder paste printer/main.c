@@ -164,10 +164,11 @@ void GetNewBlock(){
 		case Rapid_position:
 			PrepStep();
 			break;
-		case Arc_CW:
-		case Arc_CCW:
+		case Arc_CW: break;
+		case Arc_CCW: break;
 		case Home: {
-			HomingRoutine(theCurrentBlock.motion);
+			//HomingRoutine(theCurrentBlock.motion);
+			currentState.blockFinished = true;
 			break;
 		}
 		case Dwell: {

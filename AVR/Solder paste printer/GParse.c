@@ -533,7 +533,7 @@ void InitParser(){
 	currentBlock.pos.z.micro = 0;
 	currentBlock.motion = Home;
 	currentBlock.dispenseRate = 0;
-	currentBlock.moveSpeed = 3;
+	currentBlock.moveSpeed = 5;
 	currentBlock.dispenseEnable = false;
 	currentBlock.dwellTime = 0;
 	currentBlock.coordinateMode = absolute;
