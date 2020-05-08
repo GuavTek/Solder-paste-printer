@@ -2,6 +2,7 @@ import pprint
 import serial
 import threading
 import sys
+import pathgenerator
 from serial.tools import list_ports
 
 
@@ -16,6 +17,7 @@ class UserCom:
     data_name = ''
     system_break = False
     system_pause = False
+
     user_commands = {
         "run": "%",
         "reset": "@",
@@ -25,26 +27,31 @@ class UserCom:
         "pause": "P",
         "start": "S",
         "load file": "F",
+        "create new file": 'G',
+        "real time command": "R",
         "help": "H"
     }
+
     system_promt = "SYSTEM: {}"
-    help_promt = ">> 1.System commands:\n" \
-                 "[<user input>: <command sent to MCU>]\n\t" \
+
+    help_promt = ">> 1.System commands:\n\n" \
+                 "[<user input>: <command sent to MCU>]\n\n\t" \
                  "run: %\n\t" \
                  "reset: @\n\t"\
                  "run cycle: ~\n\t"\
                  "abort: 0x18\n\t"\
-                 "settings ?\n\t"\
+                 "settings: ?\n\t"\
                  "pause: P\n\t"\
                  "start: S\n\t"\
                  "load file: F\n\t"\
-                 "help: H\n"\
-                 ">> 2.Current settings:\n\t" \
+                 "send command: C\n\t"\
+                 "help: H\n\n"\
+                 ">> 2.Current settings:\n\n\t" \
                  "{}\n\t"\
                  "{}\n\t"\
                  "{}\n\t"\
                  "{}\n\t"\
-                 "{}\n"\
+                 "{}\n\n"\
                  ">> 3. Current file loaded:\n\t" \
                  "{}"
 
@@ -54,31 +61,16 @@ class UserCom:
         user_message = self.user_commands.get(user_inp, "invalid input!")
 
         if user_inp in self.user_commands.keys():
-
-            UserCom.new_command = True
-
-            if user_message == "\x18":
-                pp.pprint(self.system_promt.format(user_inp))
-                while (ser.is_open != True):
-                    ser.open()
-                com_send = bytes(user_message, 'utf-8')
-                ser.cancel_write()
-                ser.write(com_send)
-                UserCom.system_break = True
-
-
-            elif user_message == "?":
+            #Interal commands used in Python program
+            if user_message == "?":
                 pp.pprint('Current settings are: ')
                 settings()
 
             elif user_message == "F":
-                UserCom.data, UserCom.data_name = load_file()
+                self.data, self.data_name = load_file()
 
-            elif user_message == "P":
-                UserCom.system_pause = True
-
-            elif user_message == "S":
-                UserCom.system_pause = False
+            elif user_message == 'G':
+                create_gfile()
 
             elif user_message == 'H':
                 print(self.help_promt.format("Defined baudrate: " + str(self.s.get("baudrate")),
@@ -88,58 +80,78 @@ class UserCom:
                                             "Define timeout(sec): " + str(self.s.get("timeout")),
                                             UserCom.data_name))
 
+            elif user_message == "P":
+                self.system_pause = True
+
+            elif user_message == 'R':
+                self.user_comflags = 'R'
+                self.system_pause = True
+
+            elif user_message == "S":
+                self.system_pause = False
+
+
+            #External commands sendt to MCU
             else:
                 while (ser.is_open != True):
                     ser.open()
 
                 if user_inp == "reset":
-                    UserCom.system_break = True
+                    self.set_systembreak()
                     pp.pprint(self.system_promt.format(user_inp))
 
-                UserCom.user_comflags = user_inp
+                elif user_message == "\x18":
+                    self.set_systembreak()
+                    pp.pprint(self.system_promt.format(user_inp))
+                    ser.cancel_write()
+
+                self.user_comflags = user_inp
                 com_send = bytes(user_message, 'utf-8')
                 ser.write(com_send)
 
-    @classmethod
-    def reset(cls):
-        cls.new_command = False
-        cls.user_comflags = ''
-        cls.data = ''
-        cls.data_name = ''
-        cls.system_break = False
-        cls.system_pause = False
+    @staticmethod
+    def real_time_mode(inp):
+        ser.write(b'%')
+        for send_command in inp:
+            send_command = bytes(send_command, 'utf-8')
+            ser.write(send_command)
+        ser.write(b'\n')
 
-    @classmethod
-    def add_commands(cls, key, value):
-        cls.user_commands.update({str(key): str(value)})
 
-    @classmethod
-    def change_system_promt(cls, new_promt):
-        cls.system_promt = new_promt + ": {}"
+    def reset(self):
+        self.new_command = False
+        self.user_comflags = ''
+        self.data = ''
+        self.data_name = ''
+        self.system_break = False
+        self.system_pause = False
+
+
 
     @classmethod
     def clear_userflag(cls):
         cls.user_comflags = ''
 
     @classmethod
-    def clear_new_com(cls):
-        cls.new_command = False
+    def set_systembreak(cls):
+        cls.system_break = True
 
 class mcuCom:
 
     mcu_comflags = []
-    mcu_com_withnum = [b'N', b'L', b'E', b'H', b'O', b'F']
-    mcu_com_num = {
-        b'R' : 'RX',
-        b'B' : 'Blockbuffer',
-        b'W' : 'Blockbuffer Word Overflow'
-    }
-
     line = 0
     line_flag = 0
     last_line_flag = 0
     wait_for_num = False
     console_txt = '{}. MCU system: {}'
+
+    mcu_com_withnum = [b'N', b'L', b'E', b'H', b'O', b'F']
+
+    mcu_com_num = {
+        b'R': 'RX',
+        b'B': 'Blockbuffer',
+        b'W': 'Blockbuffer Word Overflow'
+    }
 
     mcu_commands = {
         b'N': 'INSTRUCTION NR.{}: G-CODE COMMAND NOT RECOGNIZED!',
@@ -195,55 +207,52 @@ class mcuCom:
                 self.wait_for_num = False
 
     @classmethod
-    def comflag_state(cls, data):
+    def comflag_state(cls, data, usercom):
         if 'N' in data:
             cls.line_flag += 1
 
         if data == '\n':
             while True:
-                if cls.system_break:
-                    return
+                for x in cls.mcu_comflags:
+                    if usercom.system_break:
+                        return
 
-                elif UserCom.system_pause:
-                    while True:
-                        if not UserCom.system_pause:
-                            break
+                    elif usercom.system_pause:
+                        while True:
+                            if not usercom.system_pause:
+                                break
+                    elif cls.line_flag >= 2 and cls.line_flag > cls.last_line_flag:
+                        while cls.last_line_flag != cls.line_flag:
+                            if usercom.system_break:
+                                return
 
-                elif ('DATA RECEIVED!') in cls.mcu_comflags:
-                    cls.clear_mcuflag('DATA RECEIVED!')
-                    break
+                            elif 'LINE NR.{}: EXECUTING' in cls.mcu_comflags:
+                                cls.clear_mcuflag('LINE NR.{}: EXECUTING')
+                                cls.last_line_flag += 1
 
-                elif cls.line_flag >= 2 and cls.line_flag > cls.last_line_flag:
-                    while cls.last_line_flag != cls.line_flag:
-                        if UserCom.system_break:
-                            return
+                    elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in cls.mcu_comflags:
+                        cls.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
+                        while True:
+                            if 'RX BUFFER IS READY TO RECEIVE DATA' in cls.mcu_comflags:
+                                cls.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
 
-                        elif 'LINE NR.{}: EXECUTING' in cls.mcu_comflags:
-                            cls.clear_mcuflag('LINE NR.{}: EXECUTING')
-                            cls.last_line_flag += 1
+                    elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in cls.mcu_comflags:
+                        cls.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
 
-                elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in cls.mcu_comflags:
-                    cls.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
-                    while True:
-                        if 'RX BUFFER IS READY TO RECEIVE DATA' in cls.mcu_comflags:
-                            cls.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
-                            return
-                elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in cls.mcu_comflags:
-                    cls.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
-                    break
-                elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED' in cls.mcu_comflags:
-                    cls.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
-                    break
+                    elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED' in cls.mcu_comflags:
+                        cls.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
 
-                elif 'UNEXPECTED EDGE ON {} AXIS!' in cls.mcu_comflags:
-                    cls.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
-                    break
+
+                    elif 'UNEXPECTED EDGE ON {} AXIS!' in cls.mcu_comflags:
+                        cls.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
+
+                cls.mcu_comflags.clear()
+                break
 
     @classmethod
     def command_print(cls, message):
         cls.line += 1
         pp.pprint(cls.console_txt.format(cls.line, message))
-
 
     @classmethod
     def res_mcucom_append(cls, mcu_command):
@@ -266,14 +275,16 @@ class mcuCom:
 
 class Serial_routine(threading.Thread):
 
-    def __init__(self, thread_id, name, data):
+    def __init__(self, thread_id, name, data, mcu_class, user_class):
         threading.Thread.__init__(self)
         self.thread_id = thread_id
         self.name = name
         self.data = data
+        self.mcu_class = mcu_class
+        self.user_class = user_class
 
     def run(self):
-        TX_routine(self.data)
+        TX_routine(self.data, self.mcu_class, self.user_class)
 
 
 
@@ -285,12 +296,9 @@ def intSerialport():
     ser.port = "null"
     ser.timeout = 1
     mcu_descdict = {
-
-
         'darwin': ['nEDBG CMSIS-DAP'],
         'win32':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
         'win64':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
-
     }
     # Check for connected devices
     x = list(list_ports.comports())
@@ -334,6 +342,7 @@ def intSerialport():
         ser.write(b'@')
         init = mcuCom()
         init(ser.read())
+
         while 'MCU is initalized' not in init.mcu_comflags:
             ser.write(b'@')
             init(ser.read())
@@ -347,23 +356,28 @@ def RX_routine():
     return RX
 
 
-def TX_routine(data):
-    MCU_commands = mcuCom()
+def TX_routine(data, mcucom, usercom):
 
     # prepearing a line to be sent
     while True:
         while (ser.is_open == False):
             ser.open()
-        for x in data:
-
-            TX = bytes(x, 'utf-8')
-            if (TX != b' ' or TX != ''):
-                ser.write(TX)
-                if UserCom.system_break:
+        for data_line in data:
+            TX_data = bytes(data_line, 'utf-8')
+            if (TX_data != b' ' or TX_data != ''):
+                ser.write(TX_data)
+                if usercom.system_break:
                     return
-                MCU_commands.comflag_state(x)
+                mcucom.comflag_state(data_line, usercom)
         ser.write(b'\n')
         break
+
+
+def create_gfile():
+    edge_cut_file = input(">> Type in edge cut file name: ")
+    paste_file = input(">> Type in paste file name: ")
+    file_name = input(">> Type in file name: ")
+    pathgenerator.create_G_file(edge_cut_file, paste_file, file_name)
 
 
 def load_file():
