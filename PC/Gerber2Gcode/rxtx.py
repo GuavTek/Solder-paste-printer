@@ -18,6 +18,7 @@ class UserCom:
     run_tx_flag = False
     system_pause = False
 
+
     user_commands = {
         "run": "%",
         "reset": "@",
@@ -78,7 +79,7 @@ class UserCom:
                                             "RX/TX parity enabled: " + str(self.s.get("parity")),
                                             "RX/TX stopbits: " + str(self.s.get("stopbits")),
                                             "Define timeout(sec): " + str(self.s.get("timeout")),
-                                            UserCom.data_name))
+                                            self.data_name))
 
             elif user_message == "P":
                 self.system_pause = True
@@ -145,8 +146,10 @@ class McuCom:
     package_number = 0
     com_withnum_flag = False
     console_txt = '{}. MCU system: {}'
+    num_res = ''
+    last_line_flag = False
 
-    mcu_com_withnum = [b'N', b'L', b'E', b'H', b'O', b'F']
+    mcu_com_withnum = [b'N', b'L', b'E', b'H', b'O', b'F', b'G']
 
     withnum_com = {
         b'R': 'RX',
@@ -158,8 +161,9 @@ class McuCom:
         b'N': 'INSTRUCTION NR.{}: G-CODE COMMAND NOT RECOGNIZED!',
         b'E': 'UNEXPECTED EDGE ON {} AXIS!',
         b'O': '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)',
-        b'F': '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED',
+        b'F': '{}: BUFFER FULL! WAITING FOR LINES STORED IN BUFFER TO BE EXECUTED',
         b'A': 'BUFFER READY TO RECEIVE DATA',
+        b'G': 'BUFFER EMPTY',
         b'S': 'STOP DETECTED!',
         b'H': 'INSTRUCTION LINE NR.{}: SHORT WORD.',
         b'B': 'DATA PACKAGE NR.{} RECEIVED!',
@@ -170,20 +174,17 @@ class McuCom:
     }
     mcu_values = list(mcu_commands.values())
 
-    def __init__(self):
-        self.num_line = ''
-        self.num_res = ''
-
     def __call__(self, inp):
         res_mcu_com = self.mcu_commands.get(inp, 'None')
 
-        if inp in self.mcu_commands.keys() and not self.com_withnum_flag:
+        if (inp in self.mcu_commands.keys()) and (not self.com_withnum_flag):
+
             if inp in self.mcu_com_withnum:
                 self.com_withnum_flag = True
                 self.num_line = res_mcu_com
-            elif res_mcu_com == 'DATA PACKAGE NR.{} RECEIVED!'
+            elif res_mcu_com == 'DATA PACKAGE NR.{} RECEIVED!':
                 self.package_number += 1
-                self.command_print(self.res_mcu_com.format(self.package_number))
+                self.command_print(res_mcu_com.format(self.package_number))
                 self.res_mcucom_append(res_mcu_com)
 
             else:
@@ -195,15 +196,19 @@ class McuCom:
                 self.num_res += inp.decode('utf-8')
                 if inp == b'\n':
                     self.num_res = self.num_res.replace('\n', '')
-                    self.num_res = self.num_line.format(self.num_res)
-                    self.command_print(self.num_res)
+                    line_print = self.num_line.format(self.num_res)
+                    self.command_print(line_print)
                     self.res_mcucom_append(self.num_line)
+
+                    if self.last_line_flag and self.num_res == str(self.N_line_number + 1):
+                        print('>> print done')
+
                     self.num_res = ''
                     self.num_line = ''
                     self.com_withnum_flag = False
-
             else:
-                self.num_res = self.withnum_com.get(inp, inp.decode('utf-8'))
+
+                self.num_res = self.withnum_com.get(inp)
                 self.num_res = self.num_line.format(self.num_res)
                 self.command_print(self.num_res)
                 self.res_mcucom_append(self.num_line)
@@ -212,31 +217,28 @@ class McuCom:
                 self.com_withnum_flag = False
 
 
-    def comflag_state(self, data, usercom=UserCom):
-        if 'N' in data:
+    def comflag_state(self, data, usercom):
+        if b'N' in data:
             self.N_line_number += 1
 
-        if data == '\n':
+        if data == b'\n':
             while len(self.mcu_comflags):
 
-                if usercom.run_tx_flag:
+                if not usercom.run_tx_flag:
                     return
 
                 elif usercom.system_pause:
                     while True:
                         if not usercom.system_pause:
                             break
-                #elif cls.line_flag >= 2 and cls.line_flag > cls.last_line_flag:
-                elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
-                    if self.N_line_number == self.last_N_line_number + 2:
-                        while self.N_line_number != self.last_N_line_number + 1:
-                            if usercom.run_tx_flag:
-                                return
-                            elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
-                                self.clear_mcuflag('LINE NR.{}: EXECUTING')
-                                self.last_N_line_number += 1
-                    else:
-                        self.clear_mcuflag('LINE NR.{}: EXECUTING')
+
+                if self.N_line_number == self.last_N_line_number + 2:
+                    while self.N_line_number != self.last_N_line_number + 1:
+                        if not usercom.run_tx_flag:
+                            return
+                        elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
+                            self.clear_mcuflag('LINE NR.{}: EXECUTING')
+                            self.last_N_line_number += 1
 
                 elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in self.mcu_comflags:
                     self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
@@ -244,18 +246,24 @@ class McuCom:
                         if 'RX BUFFER IS READY TO RECEIVE DATA' in self.mcu_comflags:
                             self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
 
-                elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in cls.mcu_comflags:
+                elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in self.mcu_comflags:
                     self.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
 
-                elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED' in self.mcu_comflags:
-                    self.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
-
+                elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN BUFFER TO BE EXECUTED' in self.mcu_comflags:
+                    self.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN BUFFER TO BE EXECUTED')
 
                 elif 'UNEXPECTED EDGE ON {} AXIS!' in self.mcu_comflags:
                     self.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
+                elif 'BUFFER EMPTY' in self.mcu_comflags:
+                    self.clear_mcuflag('BUFFER EMPTY')
+                elif 'STOP DETECTED!' in self.mcu_comflags:
+                    self.clear_mcuflag('STOP DETECTED!')
 
                 elif 'MCU is initalized' in self.mcu_comflags:
                     self.clear_mcuflag('MCU is initalized')
+                elif 'DATA PACKAGE NR.{} RECEIVED!' in self.mcu_comflags:
+                    self.clear_mcuflag('DATA PACKAGE NR.{} RECEIVED!')
+
 
 
     def command_print(self, message):
@@ -270,6 +278,7 @@ class McuCom:
 
     def reset(self):
         self.num_line = False
+        self.last_line_flag = False
         self.command_number = 0
         self.package_number = 0
         self.mcu_comflags.clear()
@@ -337,17 +346,19 @@ def intSerialport():
 
     print(">> To show system commands type: <help>")
     # if device was found; communicate
+
     if ser.port != "null":
+        ser.open()
         while not ser.is_open:
             ser.open()
-
         ser.write(b'@')
-        init = McuCom()
-        init(ser.read())
+        x = ser.read()
 
-        while 'MCU is initalized' not in init.mcu_comflags:
-            ser.write(b'@')
-            init(ser.read())
+        if x == b'o':
+            print('MCU conected')
+        else:
+            while x != b'o':
+                x = ser.read()
 
 
 def RX_routine():
@@ -366,11 +377,11 @@ def TX_routine(data, mcucom, usercom):
         for data_line in data:
             if data_line == '#':
                 usercom.run_tx_flag = False
-            elif data_line != b' ' or data_line != '' and usercom.run_tx_flag:
+                mcucom.last_line_flag = True
+            elif data_line != ' ' or data_line != '' and usercom.run_tx_flag:
                 tx_data = bytes(data_line, 'utf-8')
                 ser.write(tx_data)
-                mcucom.comflag_state(data_line, usercom)
-
+                mcucom.comflag_state(tx_data, usercom)
 
 
 def create_gfile():
@@ -387,7 +398,7 @@ def load_file():
         file_temp = open(file_name, 'r')
         filename = file_temp.name
         data = file_temp.read()
-        data.write('\n#')
+        data += '\n#'
         print(">> File " + file_temp.name + " loaded")
     except FileNotFoundError:
         print("File not found, pleease check if file exsist")
@@ -417,7 +428,7 @@ def settings():
     while i == "Y":
 
 
-        def setings(i):
+        def settings(i):
             switcher = {
                 0: 'baudrate',
                 1: 'bytesize',
@@ -428,16 +439,16 @@ def settings():
             return switcher.get(i, "invalid setting")
 
         for x in range(5):
-            print(x, setings(x), sep="-")
+            print(x, settings(x), sep="-")
 
         i = input("What setting do you want to change? 0-4: ")
-        set_value = setings(int(i))
+        set_value = settings(int(i))
 
         while set_value == "invalid setting":
             print("invalid input!")
             i = input("What setting do you want to change? 0-4: ")
 
-            set_value = setings(int(i))
+            set_value = settings(int(i))
 
         i = input("Enter new value: ")
 

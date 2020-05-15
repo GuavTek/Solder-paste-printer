@@ -1,37 +1,34 @@
-from typing import Callable
 
-import keyboard
-import rxtx
+class KeyboardListener:
 
-#function for capturing konsoll input
-def keyinp(inp, user_class=rxtx.UserCom()):
+    def __init__(self, user_com):
+        self.user_com = user_com
 
-    #abort TX
-    if inp.name == "esc":
-        user_class("abort")
-        return
+    def __call__(self, inp):
 
-    #routine for handling real time commands
-    elif user_class.user_comflags == 'R':
-        if inp.name == "enter":
+        # abort TX
+        if inp.name == "esc":
+            self.user_com("abort")
+            return
+
+        # routine for handling real time commands
+        elif self.user_com.user_comflags == 'R':
+            if inp.name == "enter":
+                key_input = input()
+
+                if key_input == "stop real time":
+                    print(">> Real time command mode disabled")
+                    self.user_com.user_comflags = ''
+                    self.user_com.system_pause = False
+                    return
+                else:
+                    # function call for sending real time commands to MCU
+                    self.user_com.real_time_mode(key_input)
+
+        # All internal commands are read here, except real time coordiantes
+        # Calls the class UserCom for handling input string
+        elif inp.name == "enter":
             key_input = input()
-
-            if key_input == "stop real time":
-                print(">> Real time command mode disabled")
-                user_class.user_comflags = ''
-                user_class.system_pause = False
-                return
-            else:
-                #function call for sending real time commands to MCU
-                user_class.real_time_mode(key_input)
-
-    #All internal commands are read here, except real time coordiantes
-    #Calls the class UserCom for handling input string
-    elif inp.name == "enter":
-        key_input = input()
-        user_class(key_input)
-        if user_class.user_comflags == 'R':
-            print('>> Enabled real time command mode')
-        return
-
-INT_keyboard = keyboard.on_release(keyinp)
+            self.user_com(key_input)
+            if self.user_com.user_comflags == 'R':
+                print('>> Enabled real time command mode')
