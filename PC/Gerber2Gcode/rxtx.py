@@ -15,7 +15,7 @@ class UserCom:
     user_comflags = ''
     data = ''
     data_name = ''
-    system_break = False
+    run_tx_flag = False
     system_pause = False
 
     user_commands = {
@@ -93,21 +93,25 @@ class UserCom:
 
             #External commands sendt to MCU
             else:
-                while (ser.is_open != True):
+                while not ser.is_open:
                     ser.open()
 
-                if user_inp == "reset":
-                    self.set_systembreak()
+                if user_inp == 'run':
+                    self.set_tx_runflag(True)
+
+                elif user_inp == "reset":
+                    ser.cancel_write()
+                    self.set_tx_runflag(False)
                     pp.pprint(self.system_promt.format(user_inp))
 
                 elif user_message == "\x18":
-                    self.set_systembreak()
-                    pp.pprint(self.system_promt.format(user_inp))
                     ser.cancel_write()
+                    self.set_tx_runflag(False)
+                    pp.pprint(self.system_promt.format(user_inp))
 
                 self.user_comflags = user_inp
-                com_send = bytes(user_message, 'utf-8')
-                ser.write(com_send)
+                tx_send = bytes(user_message, 'utf-8')
+                ser.write(tx_send)
 
     @staticmethod
     def real_time_mode(inp):
@@ -117,37 +121,34 @@ class UserCom:
             ser.write(send_command)
         ser.write(b'\n')
 
-
     def reset(self):
         self.new_command = False
         self.user_comflags = ''
         self.data = ''
         self.data_name = ''
-        self.system_break = False
+        self.run_tx_flag = False
         self.system_pause = False
 
+    def clear_userflag(self):
+        self.user_comflags = ''
+
+    def set_tx_runflag(self, condition):
+        self.run_tx_flag = condition
 
 
-    @classmethod
-    def clear_userflag(cls):
-        cls.user_comflags = ''
-
-    @classmethod
-    def set_systembreak(cls):
-        cls.system_break = True
-
-class mcuCom:
+class McuCom:
 
     mcu_comflags = []
-    line = 0
-    line_flag = 0
-    last_line_flag = 0
-    wait_for_num = False
+    command_number = 0
+    N_line_number = 0
+    last_N_line_number = 0
+    package_number = 0
+    com_withnum_flag = False
     console_txt = '{}. MCU system: {}'
 
     mcu_com_withnum = [b'N', b'L', b'E', b'H', b'O', b'F']
 
-    mcu_com_num = {
+    withnum_com = {
         b'R': 'RX',
         b'B': 'Blockbuffer',
         b'W': 'Blockbuffer Word Overflow'
@@ -161,7 +162,7 @@ class mcuCom:
         b'A': 'BUFFER READY TO RECEIVE DATA',
         b'S': 'STOP DETECTED!',
         b'H': 'INSTRUCTION LINE NR.{}: SHORT WORD.',
-        b'B': 'DATA RECEIVED!',
+        b'B': 'DATA PACKAGE NR.{} RECEIVED!',
         b'L': 'LINE NR.{}: EXECUTING',
         b'o': 'MCU is initalized',
         b'f': 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN',
@@ -176,16 +177,20 @@ class mcuCom:
     def __call__(self, inp):
         res_mcu_com = self.mcu_commands.get(inp, 'None')
 
-        if inp in self.mcu_commands.keys() and not self.wait_for_num:
+        if inp in self.mcu_commands.keys() and not self.com_withnum_flag:
             if inp in self.mcu_com_withnum:
-                self.wait_for_num = True
+                self.com_withnum_flag = True
                 self.num_line = res_mcu_com
+            elif res_mcu_com == 'DATA PACKAGE NR.{} RECEIVED!'
+                self.package_number += 1
+                self.command_print(self.res_mcu_com.format(self.package_number))
+                self.res_mcucom_append(res_mcu_com)
 
             else:
-                self.res_mcucom_append(res_mcu_com)
                 self.command_print(res_mcu_com)
+                self.res_mcucom_append(res_mcu_com)
 
-        elif self.wait_for_num:
+        elif self.com_withnum_flag:
             if 'LINE NR.{}: EXECUTING' in self.num_line:
                 self.num_res += inp.decode('utf-8')
                 if inp == b'\n':
@@ -195,86 +200,86 @@ class mcuCom:
                     self.res_mcucom_append(self.num_line)
                     self.num_res = ''
                     self.num_line = ''
-                    self.wait_for_num = False
+                    self.com_withnum_flag = False
 
             else:
-                self.num_res = self.mcu_com_num.get(inp, inp.decode('utf-8'))
+                self.num_res = self.withnum_com.get(inp, inp.decode('utf-8'))
                 self.num_res = self.num_line.format(self.num_res)
                 self.command_print(self.num_res)
                 self.res_mcucom_append(self.num_line)
                 self.num_line = ''
                 self.num_res = ''
-                self.wait_for_num = False
+                self.com_withnum_flag = False
 
-    @classmethod
-    def comflag_state(cls, data, usercom):
+
+    def comflag_state(self, data, usercom=UserCom):
         if 'N' in data:
-            cls.line_flag += 1
+            self.N_line_number += 1
 
         if data == '\n':
-            while True:
-                for x in cls.mcu_comflags:
-                    if usercom.system_break:
-                        return
+            while len(self.mcu_comflags):
 
-                    elif usercom.system_pause:
-                        while True:
-                            if not usercom.system_pause:
-                                break
-                    elif cls.line_flag >= 2 and cls.line_flag > cls.last_line_flag:
-                        while cls.last_line_flag != cls.line_flag:
-                            if usercom.system_break:
+                if usercom.run_tx_flag:
+                    return
+
+                elif usercom.system_pause:
+                    while True:
+                        if not usercom.system_pause:
+                            break
+                #elif cls.line_flag >= 2 and cls.line_flag > cls.last_line_flag:
+                elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
+                    if self.N_line_number == self.last_N_line_number + 2:
+                        while self.N_line_number != self.last_N_line_number + 1:
+                            if usercom.run_tx_flag:
                                 return
+                            elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
+                                self.clear_mcuflag('LINE NR.{}: EXECUTING')
+                                self.last_N_line_number += 1
+                    else:
+                        self.clear_mcuflag('LINE NR.{}: EXECUTING')
 
-                            elif 'LINE NR.{}: EXECUTING' in cls.mcu_comflags:
-                                cls.clear_mcuflag('LINE NR.{}: EXECUTING')
-                                cls.last_line_flag += 1
+                elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in self.mcu_comflags:
+                    self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
+                    while True:
+                        if 'RX BUFFER IS READY TO RECEIVE DATA' in self.mcu_comflags:
+                            self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
 
-                    elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in cls.mcu_comflags:
-                        cls.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
-                        while True:
-                            if 'RX BUFFER IS READY TO RECEIVE DATA' in cls.mcu_comflags:
-                                cls.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
+                elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in cls.mcu_comflags:
+                    self.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
 
-                    elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in cls.mcu_comflags:
-                        cls.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
-
-                    elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED' in cls.mcu_comflags:
-                        cls.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
-
-
-                    elif 'UNEXPECTED EDGE ON {} AXIS!' in cls.mcu_comflags:
-                        cls.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
-
-                cls.mcu_comflags.clear()
-                break
-
-    @classmethod
-    def command_print(cls, message):
-        cls.line += 1
-        pp.pprint(cls.console_txt.format(cls.line, message))
-
-    @classmethod
-    def res_mcucom_append(cls, mcu_command):
-        cls.mcu_comflags.append(mcu_command)
-
-    @classmethod
-    def clear_mcuflag(cls, list):
-        cls.mcu_comflags.remove(list)
-
-    @classmethod
-    def reset(cls):
-        cls.num_line = False
-        cls.line = 0
-        cls.mcu_comflags.clear()
-        cls.line_flag = 0
-        cls.last_line_flag = 0
-        cls.num_line = ''
-        cls.num_res = ''
+                elif '{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED' in self.mcu_comflags:
+                    self.clear_mcuflag('{}: BUFFER FULL! WAITING FOR LINES STORED IN {} BUFFER TO BE EXECUTED')
 
 
-class Serial_routine(threading.Thread):
+                elif 'UNEXPECTED EDGE ON {} AXIS!' in self.mcu_comflags:
+                    self.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
 
+                elif 'MCU is initalized' in self.mcu_comflags:
+                    self.clear_mcuflag('MCU is initalized')
+
+
+    def command_print(self, message):
+        self.command_number += 1
+        pp.pprint(self.console_txt.format(self.command_number, message))
+
+    def res_mcucom_append(self, mcu_command):
+        self.mcu_comflags.append(mcu_command)
+
+    def clear_mcuflag(self, list):
+        self.mcu_comflags.remove(list)
+
+    def reset(self):
+        self.num_line = False
+        self.command_number = 0
+        self.package_number = 0
+        self.mcu_comflags.clear()
+        self.N_line_number = 0
+        self.last_N_line_number = 0
+        self.num_line = ''
+        self.num_res = ''
+
+
+class SerialThread(threading.Thread):
     def __init__(self, thread_id, name, data, mcu_class, user_class):
         threading.Thread.__init__(self)
         self.thread_id = thread_id
@@ -285,7 +290,6 @@ class Serial_routine(threading.Thread):
 
     def run(self):
         TX_routine(self.data, self.mcu_class, self.user_class)
-
 
 
 def intSerialport():
@@ -334,43 +338,39 @@ def intSerialport():
     print(">> To show system commands type: <help>")
     # if device was found; communicate
     if ser.port != "null":
-        ser.open()
         while not ser.is_open:
-            if ser.is_open:
-                break
+            ser.open()
 
         ser.write(b'@')
-        init = mcuCom()
+        init = McuCom()
         init(ser.read())
 
         while 'MCU is initalized' not in init.mcu_comflags:
             ser.write(b'@')
             init(ser.read())
-    return
 
 
 def RX_routine():
     while not ser.is_open:
         ser.open()
-    RX = ser.read()
-    return RX
+    rx = ser.read()
+    return rx
 
 
 def TX_routine(data, mcucom, usercom):
-
+    while not ser.is_open:
+        ser.open()
+        
     # prepearing a line to be sent
-    while True:
-        while (ser.is_open == False):
-            ser.open()
+    while usercom.run_tx_flag:
         for data_line in data:
-            TX_data = bytes(data_line, 'utf-8')
-            if (TX_data != b' ' or TX_data != ''):
-                ser.write(TX_data)
-                if usercom.system_break:
-                    return
+            if data_line == '#':
+                usercom.run_tx_flag = False
+            elif data_line != b' ' or data_line != '' and usercom.run_tx_flag:
+                tx_data = bytes(data_line, 'utf-8')
+                ser.write(tx_data)
                 mcucom.comflag_state(data_line, usercom)
-        ser.write(b'\n')
-        break
+
 
 
 def create_gfile():
@@ -387,9 +387,11 @@ def load_file():
         file_temp = open(file_name, 'r')
         filename = file_temp.name
         data = file_temp.read()
+        data.write('\n#')
         print(">> File " + file_temp.name + " loaded")
     except FileNotFoundError:
         print("File not found, pleease check if file exsist")
+        return
     finally:
         file_temp.close()
         return data, filename
@@ -408,13 +410,14 @@ def settings():
 
     i = input("Do you want to change settings Y/N: ")
 
-    while (not (i == 'Y' or i == 'N')):
+    while not (i == 'Y' or i == 'N'):
         print("Invalid input")
         i = input("Do you want to change settings Y/N: ")
 
-    while (i == "Y"):
+    while i == "Y":
 
-        def settings(i):
+
+        def setings(i):
             switcher = {
                 0: 'baudrate',
                 1: 'bytesize',
@@ -425,26 +428,30 @@ def settings():
             return switcher.get(i, "invalid setting")
 
         for x in range(5):
-            print(x, settings(x), sep="-")
+            print(x, setings(x), sep="-")
 
         i = input("What setting do you want to change? 0-4: ")
-        set_value = settings(int(i))
+        set_value = setings(int(i))
 
-        while (set_value == "invalid setting"):
+        while set_value == "invalid setting":
             print("invalid input!")
             i = input("What setting do you want to change? 0-4: ")
 
-            set_value = settings(int(i))
+            set_value = setings(int(i))
 
         i = input("Enter new value: ")
 
         new_value = i
-        if (new_value.isdigit() == True):
+
+        if new_value.isdigit():
             new_value = int(new_value)
-        elif ((set_value == 'stopbits') or (set_value == 'timeout')):
+
+        elif set_value == 'stopbits' or set_value == 'timeout':
             new_value = float(new_value)
-        elif (new_value == "True" or new_value == "False"):
+
+        elif new_value == True or new_value == False:
             new_value = bool(new_value)
+
         else:
             new_value = new_value
 
