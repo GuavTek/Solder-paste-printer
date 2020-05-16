@@ -201,15 +201,15 @@ void EndDwell(){
 void InterruptInit (){
 	
 	//Interrupt priority
-	CPUINT.LVL1VEC = 0x4A;	//UART RX is highest priority
-	//RTC
+	CPUINT.LVL1VEC = 3;			//RTC is highest priority
+	//UART RX
+	//UART TX
 	//TCB0	(X-axis)
 	//TCB1	(Y-axis)
 	//PORTD	(End-sensors)
 	//PORTC	(End-sensors)
 	//TCB2	(Z-axis)
-	//PORTE (Delay)
-	//UART TX
+	CPUINT.LVL0PRI = 35;		//PORTE (Delay) is lowest priority
 
 	sei();
 }
