@@ -227,11 +227,11 @@ void TX_read()
 	{
 		if (RX_Full)
 		{
-			USARTn.TXDATAL = 'f';
+			USARTn.TXDATAL = XOFF;
 		} 
 		else
 		{
-			USARTn.TXDATAL = 'a';
+			USARTn.TXDATAL = XON;
 		}
 		
 		prevRX_Full = RX_Full;

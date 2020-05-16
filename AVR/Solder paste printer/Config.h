@@ -56,7 +56,7 @@
 #define CMD_SKIP 0x7F
 
 //Standard flow-control chars
-#define XOFF 0x13
-#define XON 0x11
+#define XOFF 'f' //0x13
+#define XON 'a' //0x11
 
 #endif /* CONFIG_H_ */
