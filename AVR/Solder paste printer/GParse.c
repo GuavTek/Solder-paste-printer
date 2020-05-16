@@ -335,7 +335,7 @@ ReturnCodes ParseWord(){
 						break;
 					}
 					case 50: {
-						//Position register offset
+						//Position register offset, currently only works with absolute positions
 						currentBlock.motion = Offset_posReg;
 						break;
 					}

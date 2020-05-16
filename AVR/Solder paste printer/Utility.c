@@ -118,7 +118,7 @@ StepCount LengthZ2Step(float length, enum CoordUnit unit){
 	return newStep;
 }
 
-void InitClock(){
+void InitRTC(){
 	
 	//Wait for registers to synchronize
 	while(RTC.STATUS > 0){}
@@ -141,7 +141,7 @@ void InitClock(){
 
 }
 
-void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
+void Delay(uint16_t waitTime, void (*functionToTrigger)(void)){
 	
 	//Abort if buffer is full
 	if (bAvail == 0)
@@ -271,10 +271,8 @@ void RunDelayedFunctions(){
 	
 }
 
+//RTC overflow
 ISR(_VECTOR(3)){
-	//Clear interrupt flag
-	RTC.INTFLAGS = RTC_OVF_bm;
-
 	millis++;
 
 	//Check if delay time is done
@@ -283,4 +281,15 @@ ISR(_VECTOR(3)){
 		//Trigger pin interrupt
 		PORTE.OUTCLR = PIN0_bm;
 	}
+
+	//Clear interrupt flag
+	RTC.INTFLAGS = RTC_OVF_bm;
+}
+
+ISR(PORTE_PORT_vect, ISR_NOBLOCK){
+	RunDelayedFunctions();
+
+	//Clear pin interrupt
+	PORTE.OUTSET = PIN0_bm;
+	PORTE.INTFLAGS = PIN0_bm;
 }

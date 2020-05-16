@@ -64,7 +64,7 @@ void PrepStep(void)
         calculate the feedrate, set the stepping direction and set the corresponding step flags
         If delta returns non zero data sets, the steps to be excutetd gets stored in the 'st' block, steping direction is set,
         step flag is set, step data that comes directly from 'theCurrentBlock' gets stored as last position and the counter variables is reset to 1*/
-        if(delta.x.full != 0 || delta.y.full != 0 || delta.x.micro != 0 || delta.y.micro != 0))
+        if(delta.x.full != 0 || delta.y.full != 0 || delta.x.micro != 0 || delta.y.micro != 0)
         {
             if(!(delta.x.full == 0))
             {
@@ -636,7 +636,7 @@ ISR(TCB1_INT_vect) //TCB1 vector
 
 
 void InitEndSensors(){
-    /*Init interupt capture on event routine, and enable pullup resistor to ensure non floating condition for the coresponding end sensors input pins*/ 
+    /*Init interrupt capture on event routine, and enable pullup resistor to ensure non floating condition for the coresponding end sensors input pins*/ 
 	PORTC.PIN5CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
 	PORTD.PIN1CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
 	PORTD.PIN2CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;

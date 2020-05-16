@@ -55,16 +55,8 @@ typedef enum {
 	printing
 } Status;
 
-typedef struct {
-	int32_t full : 24;
-	int8_t micro;
-} StepCount;
 
-typedef struct {
-	StepCount x;
-	StepCount y;
-	StepCount z;
-} StepVector3;
+
 
 
 
@@ -82,6 +74,17 @@ typedef struct {
 	bool blockFinished : 1;
 	bool statusDump : 1;
 } PrinterState;
+
+typedef struct {
+	int32_t full : 24;
+	int8_t micro;
+} StepCount;
+
+typedef struct {
+	StepCount x;
+	StepCount y;
+	StepCount z;
+} StepVector3;
 
 //Should contain all parameters of a command
 typedef struct {
@@ -122,16 +125,16 @@ StepCount LengthZ2Step(float length, enum CoordUnit unit);
 //Converts millimeters or inches to steps
 StepCount Length2Step(float length, enum CoordUnit unit);
 
-//Sets up the clock for StartTimer function
-void InitClock();
+//Sets up the clock for Delay function
+void InitRTC();
 
-//Runs a function after waittime, waittime in millisecond
-//Triggers RTC_CMP interrupt when done
+//Places a function in the queue
+//Triggers RunDelayedFunctions when done
 //Maximum 64 seconds
 //Can wait for up to 8 functions simultaneously
-void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void));
+void Delay(uint16_t waitTime, void (*functionToTrigger)(void));
 
-//Run the functions from StartTimer that have finished waiting
+//Run the functions from the queue that have finished waiting
 void RunDelayedFunctions();
 
 #endif /* UTILITY_H_ */

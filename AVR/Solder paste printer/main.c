@@ -34,7 +34,7 @@ int main(void)
 	//Initialize
 	USART_INIT(3, 9600);
 	InitEndSensors();
-	InitClock();
+	InitRTC();
 	InitDispenser();
 	stepper_TCB_init();
 	InterruptInit();
@@ -43,7 +43,7 @@ int main(void)
 	PORTF.DIRSET = PIN5_bm;	
 //	PORTF.OUTSET = PIN5_bm;
 	Blinky();
-	
+
 	USARTn.TXDATAL = 'o';
 	currentState.state = idle;
     currentState.noError = true;
@@ -63,7 +63,7 @@ int main(void)
 
 void Blinky(){
 	PORTF.OUTTGL = PIN5_bm;
-	StartTimer(timer, Blinky);
+	Delay(timer, Blinky);
 }
 
 //Main loop when printing
@@ -167,12 +167,12 @@ void GetNewBlock(){
 		case Arc_CW: break;
 		case Arc_CCW: break;
 		case Home: {
-			//HomingRoutine(theCurrentBlock.motion);
-			currentState.blockFinished = true;
+			HomingRoutine(theCurrentBlock.motion);
+			//currentState.blockFinished = true;
 			break;
 		}
 		case Dwell: {
-			StartTimer(theCurrentBlock.dwellTime, EndDwell);
+			Delay(theCurrentBlock.dwellTime, EndDwell);
 			break;
 		}
 		case Pause: {
@@ -199,9 +199,7 @@ void EndDwell(){
 }
 
 void InterruptInit (){
-	//Set round-robin interrupt priority
-	//ccp_write_io((void*)&CPUINT.CTRLA, CPUINT_LVL0RR_bm);
-
+	
 	//Interrupt priority
 	CPUINT.LVL1VEC = 0x4A;	//UART RX is highest priority
 	//RTC
@@ -216,10 +214,3 @@ void InterruptInit (){
 	sei();
 }
 
-ISR(PORTE_PORT_vect){
-	RunDelayedFunctions();
-
-	//Clear pin interrupt
-	PORTE.OUTSET = PIN0_bm;
-	PORTE.INTFLAGS = PIN0_bm;
-}

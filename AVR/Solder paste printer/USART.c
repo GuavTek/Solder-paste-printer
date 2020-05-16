@@ -282,16 +282,6 @@ void RTX_FLUSH(){
 	USARTn.RXDATAL;
 }
 
-//TX_Jumpstart Depreceated
-void TX_Jumpstart(){
-	//Check if there is data and we are not sending
-	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_DREIE_bm))
-	{
-		//TX_read();
-		USARTn.CTRLA |= USART_DREIE_bm;
-	}
-}
-
 ISR(USART3_RXC_vect){
 	RX_write();
 	
