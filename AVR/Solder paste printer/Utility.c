@@ -90,7 +90,7 @@ StepCount Length2Step(float length, enum CoordUnit unit){
 	tempLength -= newStep.full;
 
 	//Get micro-steps
-	newStep.micro = round(tempLength * 16);
+	newStep.micro = 0; //round(tempLength * 16);
 	
 	return newStep;
 }

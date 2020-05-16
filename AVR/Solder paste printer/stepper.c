@@ -208,6 +208,8 @@ void HomingRoutine(enum MotionModes motion)
 		PerSelect(255, &TCB0);
 		PerSelect(255, &TCB1);
 		
+		start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
+		
 		MotorPrescaleSet(1);
 		
 		StepperInit();
@@ -379,9 +381,9 @@ void PerSelect(uint8_t per, TCB_t *TCBn)
 {   //set the calulated TCB period. Divide by two to set duty cycle at 50%
 	if (per != 0)
 	{
-		uint8_t pulse = round(per/2);
+		uint8_t pulse = per/2;
 		TCBn->CCMPL = per;
-		TCBn->CCMPH = pulse;
+		TCBn->CCMPH = 1;
 	}
 }	
 
@@ -456,7 +458,7 @@ void prescale_select(uint8_t sel)
 uint16_t current_line(uint16_t new_line, uint16_t last_line)
 {	
     //Report back if the line number increases.
-	if (new_line > last_line)
+	if (new_line != last_line)
 	{
 		TX_write('L');
 		SendInt(new_line);
@@ -652,11 +654,11 @@ ISR(PORTC_PORT_vect) //Capture on event interupt vector
 		if (PORTC.IN & PIN5_bm)
 		{
 			//Entering end-sensor
-			TCB1.CTRLB &= ~TCB_CCMPEN_bm;
-			start_pos |= (1 << START_POS_Y);
+			//TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+			//start_pos |= (1 << START_POS_Y);
  			
 			//Reverse Y direction
-			
+			PORTA.OUTSET = PIN5_bm;
 		} 
 		else
 		{
@@ -692,13 +694,16 @@ ISR(PORTD_PORT_vect){
 		{
 			//Entering edge sensor
 			//Disable TCB0 PWM output on PA2
-			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+			//TCB0.CTRLB &= ~TCB_CCMPEN_bm;
 			//Reset the start position flag
-			start_pos |= (1 << START_POS_X);
+			//start_pos |= (1 << START_POS_X);
+			
+			//Move out
+			PORTC.OUTSET = PIN2_bm;
 		}
-		//Leaving edge sensor
 		else
 		{
+			//Leaving edge sensor
 			//Disable TCB0 PWM output on PA2
 			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
 			//Clear the start position flag
