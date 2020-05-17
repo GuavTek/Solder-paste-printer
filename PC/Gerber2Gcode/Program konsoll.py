@@ -2,33 +2,52 @@ import rxtx
 import KeyInput
 from keyboard import on_release
 
-uart = rxtx
-uart.intSerialport()
-Usercom = uart.UserCom()
-Mcucom = uart.McuCom()
-KeyClass = KeyInput.KeyboardListener(Usercom)
-start_trans = False
-thread_index = 0
-thread_dict = {}
 
-INT_keyboard = on_release(KeyClass)
+def main():
+    #Creating class objects and variables
+    uart = rxtx.SerialCom()
+    Usercom = rxtx.UserCom()
+    Mcucom = rxtx.McuCom()
+    KeyClass = KeyInput.KeyboardListener(Usercom)
+    start_trans = False
+    thread_index = 0
+    thread_dict = {}
 
-while True:
-    Mcucom(uart.RX_routine())
-    if Usercom.user_comflags == "run" and not start_trans:
-        thread_index += 1
-        thread_dict[thread_index] = uart.SerialThread(thread_id=str(thread_index), name=str(thread_index) + "TX_serial_routine", data=Usercom.data, mcu_class=Mcucom, user_class=Usercom)
-        thread_dict[thread_index].start()
-        start_trans = True
+    INT_keyboard = on_release(KeyClass)
+    uart.IntSerialport()
 
-    elif not Usercom.run_tx_flag and start_trans:
-        if not thread_dict[thread_index].is_alive():
-            if Usercom.user_comflags == 'abort':
-                Usercom.reset()
-            elif Usercom.user_comflags == 'reset':
-                Usercom.reset()
-                Mcucom.reset()
-            else:
-                print('>> Data transmit done')
-                Usercom.reset()
-                start_trans = False
+    while True:
+        Mcucom(uart.RX_routine())
+
+        # Statement for genarating threads on command.
+        # Blocks as long the current thread is alive
+        if Usercom.user_comflags == "run" and not start_trans:
+
+            # thread_index used as implisit identity and object daclaration
+            thread_index += 1
+            thread_dict[thread_index] = rxtx.SerialThread(thread_id=str(thread_index),
+                                                      name=str(thread_index) + "TX_serial_routine",
+                                                      target=uart.TX_routine,
+                                                      data=Usercom.data,
+                                                      mcu_class=Mcucom, user_class=Usercom)
+            thread_dict[thread_index].start()
+            start_trans = True
+
+        elif not Usercom.run_tx_flag and start_trans:
+            if not thread_dict[thread_index].is_alive():
+                if Usercom.user_comflags == 'abort':
+                    Usercom.reset()
+                elif Usercom.user_comflags == 'reset':
+                    Usercom.reset()
+                    Mcucom.reset()
+                else:
+                    print('>> Data transmit done')
+                    Usercom.reset()
+                    start_trans = False
+
+
+if __name__ == '__main__':
+    main()
+
+
+

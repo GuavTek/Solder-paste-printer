@@ -5,9 +5,157 @@ import sys
 import pathgenerator
 from serial.tools import list_ports
 
-
-ser = serial.Serial()
 pp = pprint.PrettyPrinter(indent=2)
+
+class SerialCom(serial.Serial):
+
+    def __init__(self):
+        serial.Serial.__init__(self)
+        self.baudrate = 9600
+        self.port = "null"
+        self.timeout = 1
+
+    def IntSerialport(self):
+        # std. settings for uart
+        mcu_descdict = {
+            'darwin': ['nEDBG CMSIS-DAP'],
+            'win32': ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
+            'win64': ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
+        }
+        # Check for connected devices
+        x = list(list_ports.comports())
+
+        # Print device info
+        for y in x:
+            pp.pprint(y.name)
+            pp.pprint("Device: " + y.device)
+            pp.pprint("Desc: " + y.description)
+            pp.pprint("HWID: " + y.hwid)
+            print('\n')
+
+        system_os = sys.platform
+        mcu_desc = mcu_descdict.get(system_os)
+
+        # connect to desired device
+        for x in mcu_desc:
+            if x in y.description:
+                self.port = y.device
+                s = self.get_settings()
+                pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
+                pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
+                pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
+                pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
+                pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
+                print('\n')
+                break
+
+        if x not in y.description:
+            print("device not connected")
+            return
+
+        # if device was found; communicate
+        if self.port != "null":
+            self.open()
+
+            while not self.is_open:
+                self.open()
+            self.write(b'@')
+            x = self.read()
+
+            if x == b'o':
+                print('>> MCU Connected')
+                print(">> To show system commands type: <help>")
+            else:
+                while x != b'o':
+                    x = self.read()
+
+    def RX_routine(self):
+        while not self.is_open:
+            self.open()
+        rx = self.read()
+        return rx
+
+    def TX_routine(self, data, mcucom, usercom):
+        while not self.is_open:
+            self.open()
+
+        # prepearing a line to be sent
+        while usercom.run_tx_flag:
+            for data_line in data:
+                if data_line == '#':
+                    usercom.run_tx_flag = False
+                    mcucom.last_line_flag = True
+                elif data_line != ' ' or data_line != '' and usercom.run_tx_flag:
+                    tx_data = bytes(data_line, 'utf-8')
+                    self.write(tx_data)
+                    mcucom.comflag_state(tx_data, usercom)
+
+    def Settings(self):
+        # show std. settings
+
+        s = self.get_settings()
+        pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
+        pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
+        pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
+        pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
+        pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
+        pp.pprint("\n")
+
+        i = input("Do you want to change settings Y/N: ")
+
+        while not (i == 'Y' or i == 'N'):
+            print("Invalid input")
+            i = input("Do you want to change settings Y/N: ")
+
+        while i == "Y":
+
+            def settings(i):
+                switcher = {
+                    0: 'baudrate',
+                    1: 'bytesize',
+                    2: 'parity',
+                    3: 'stopbits',
+                    4: 'timeout',
+                }
+                return switcher.get(i, "invalid setting")
+
+            for x in range(5):
+                print(x, settings(x), sep="-")
+
+            i = input("What setting do you want to change? 0-4: ")
+            set_value = settings(int(i))
+
+            while set_value == "invalid setting":
+                print("invalid input!")
+                i = input("What setting do you want to change? 0-4: ")
+
+                set_value = settings(int(i))
+
+            i = input("Enter new value: ")
+
+            new_value = i
+
+            if new_value.isdigit():
+                new_value = int(new_value)
+
+            elif set_value == 'stopbits' or set_value == 'timeout':
+                new_value = float(new_value)
+
+            elif new_value == True or new_value == False:
+                new_value = bool(new_value)
+
+            else:
+                new_value = new_value
+
+            s[set_value] = new_value
+            print(s)
+            self.apply_settings(s)
+
+            i = input("Change more settings Y/N: ")
+            while not (i == "Y" or i == "N"):
+                print("invalid input!")
+                i = input("Change more settings Y/N: ")
+        return
 
 
 class UserCom:
@@ -17,7 +165,6 @@ class UserCom:
     data_name = ''
     run_tx_flag = False
     system_pause = False
-
 
     user_commands = {
         "run": "%",
@@ -56,7 +203,8 @@ class UserCom:
                  ">> 3. Current file loaded:\n\t" \
                  "{}"
 
-    s = ser.get_settings()
+    def __init__(self, serial_class=SerialCom):
+        self.serial_class = serial_class
 
     def __call__(self, user_inp):
         user_message = self.user_commands.get(user_inp, "invalid input!")
@@ -65,7 +213,7 @@ class UserCom:
             #Interal commands used in Python program
             if user_message == "?":
                 pp.pprint('Current settings are: ')
-                settings()
+                self.serial_class.settings()
 
             elif user_message == "F":
                 self.data, self.data_name = load_file()
@@ -94,33 +242,33 @@ class UserCom:
 
             #External commands sendt to MCU
             else:
-                while not ser.is_open:
-                    ser.open()
+                while not self.serial_class.is_open:
+                    self.serial_class.open()
 
                 if user_inp == 'run':
                     self.set_tx_runflag(True)
 
                 elif user_inp == "reset":
-                    ser.cancel_write()
+                    self.serial_class.cancel_write()
                     self.set_tx_runflag(False)
                     pp.pprint(self.system_promt.format(user_inp))
 
                 elif user_message == "\x18":
-                    ser.cancel_write()
+                    self.serial_class.cancel_write()
                     self.set_tx_runflag(False)
                     pp.pprint(self.system_promt.format(user_inp))
 
                 self.user_comflags = user_inp
                 tx_send = bytes(user_message, 'utf-8')
-                ser.write(tx_send)
+                self.serial_class.write(tx_send)
 
-    @staticmethod
-    def real_time_mode(inp):
-        ser.write(b'%')
+
+    def real_time_mode(self, inp):
+        self.serial_class.write(b'%')
         for send_command in inp:
             send_command = bytes(send_command, 'utf-8')
-            ser.write(send_command)
-        ser.write(b'\n')
+            self.serial_class.write(send_command)
+        self.serial_class.write(b'\n')
 
     def reset(self):
         self.new_command = False
@@ -207,7 +355,6 @@ class McuCom:
                     self.num_line = ''
                     self.com_withnum_flag = False
             else:
-
                 self.num_res = self.withnum_com.get(inp)
                 self.num_res = self.num_line.format(self.num_res)
                 self.command_print(self.num_res)
@@ -254,13 +401,16 @@ class McuCom:
 
                 elif 'UNEXPECTED EDGE ON {} AXIS!' in self.mcu_comflags:
                     self.clear_mcuflag('UNEXPECTED EDGE ON {} AXIS!')
+
                 elif 'BUFFER EMPTY' in self.mcu_comflags:
                     self.clear_mcuflag('BUFFER EMPTY')
+
                 elif 'STOP DETECTED!' in self.mcu_comflags:
                     self.clear_mcuflag('STOP DETECTED!')
 
                 elif 'MCU is initalized' in self.mcu_comflags:
                     self.clear_mcuflag('MCU is initalized')
+
                 elif 'DATA PACKAGE NR.{} RECEIVED!' in self.mcu_comflags:
                     self.clear_mcuflag('DATA PACKAGE NR.{} RECEIVED!')
 
@@ -289,100 +439,17 @@ class McuCom:
 
 
 class SerialThread(threading.Thread):
-    def __init__(self, thread_id, name, data, mcu_class, user_class):
+    def __init__(self, thread_id, name, target, data, mcu_class, user_class):
         threading.Thread.__init__(self)
         self.thread_id = thread_id
         self.name = name
         self.data = data
         self.mcu_class = mcu_class
         self.user_class = user_class
+        self.target = target
 
     def run(self):
-        TX_routine(self.data, self.mcu_class, self.user_class)
-
-
-def intSerialport():
-    # std. settings for uart
-
-    baud = 9600
-    ser.baudrate = baud
-    ser.port = "null"
-    ser.timeout = 1
-    mcu_descdict = {
-        'darwin': ['nEDBG CMSIS-DAP'],
-        'win32':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
-        'win64':  ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
-    }
-    # Check for connected devices
-    x = list(list_ports.comports())
-
-    # Print device info
-    for y in x:
-        pp.pprint(y.name)
-        pp.pprint("Device: " + y.device)
-        pp.pprint("Desc: " + y.description)
-        pp.pprint("HWID: " + y.hwid)
-        print('\n')
-
-    system_os = sys.platform
-    mcu_desc = mcu_descdict.get(system_os)
-
-    # connect to desired device
-    for x in mcu_desc:
-        if x in y.description:
-            ser.port = y.device
-            s = ser.get_settings()
-            pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
-            pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
-            pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
-            pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
-            pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
-            print('\n')
-            break
-
-    if x not in y.description:
-        print("device not connected")
-        return
-
-    print(">> To show system commands type: <help>")
-    # if device was found; communicate
-
-    if ser.port != "null":
-        ser.open()
-        while not ser.is_open:
-            ser.open()
-        ser.write(b'@')
-        x = ser.read()
-
-        if x == b'o':
-            print('MCU conected')
-        else:
-            while x != b'o':
-                x = ser.read()
-
-
-def RX_routine():
-    while not ser.is_open:
-        ser.open()
-    rx = ser.read()
-    return rx
-
-
-def TX_routine(data, mcucom, usercom):
-    while not ser.is_open:
-        ser.open()
-        
-    # prepearing a line to be sent
-    while usercom.run_tx_flag:
-        for data_line in data:
-            if data_line == '#':
-                usercom.run_tx_flag = False
-                mcucom.last_line_flag = True
-            elif data_line != ' ' or data_line != '' and usercom.run_tx_flag:
-                tx_data = bytes(data_line, 'utf-8')
-                ser.write(tx_data)
-                mcucom.comflag_state(tx_data, usercom)
-
+        self.target(self.data, self.mcu_class, self.user_class)
 
 def create_gfile():
     edge_cut_file = input(">> Type in edge cut file name: ")
@@ -408,70 +475,3 @@ def load_file():
         return data, filename
 
 
-def settings():
-    # show std. settings
-
-    s = ser.get_settings()
-    pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
-    pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
-    pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
-    pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
-    pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
-    pp.pprint("\n")
-
-    i = input("Do you want to change settings Y/N: ")
-
-    while not (i == 'Y' or i == 'N'):
-        print("Invalid input")
-        i = input("Do you want to change settings Y/N: ")
-
-    while i == "Y":
-
-
-        def settings(i):
-            switcher = {
-                0: 'baudrate',
-                1: 'bytesize',
-                2: 'parity',
-                3: 'stopbits',
-                4: 'timeout',
-            }
-            return switcher.get(i, "invalid setting")
-
-        for x in range(5):
-            print(x, settings(x), sep="-")
-
-        i = input("What setting do you want to change? 0-4: ")
-        set_value = settings(int(i))
-
-        while set_value == "invalid setting":
-            print("invalid input!")
-            i = input("What setting do you want to change? 0-4: ")
-
-            set_value = settings(int(i))
-
-        i = input("Enter new value: ")
-
-        new_value = i
-
-        if new_value.isdigit():
-            new_value = int(new_value)
-
-        elif set_value == 'stopbits' or set_value == 'timeout':
-            new_value = float(new_value)
-
-        elif new_value == True or new_value == False:
-            new_value = bool(new_value)
-
-        else:
-            new_value = new_value
-
-        s[set_value] = new_value
-        print(s)
-        ser.apply_settings(s)
-
-        i = input("Change more settings Y/N: ")
-        while not (i == "Y" or i == "N"):
-            print("invalid input!")
-            i = input("Change more settings Y/N: ")
-    return

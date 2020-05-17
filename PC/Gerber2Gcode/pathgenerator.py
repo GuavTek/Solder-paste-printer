@@ -278,9 +278,3 @@ def create_G_file(filepath1, filepath2, filepath3):
 
 
 
-
-
-
-
-
-
