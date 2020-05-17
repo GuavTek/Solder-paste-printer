@@ -17,7 +17,7 @@ class KeyboardListener:
                 if key_input == "stop real time":
                     print(">> Real time command mode disabled")
                     self.user_com.user_comflags = ''
-                    self.user_com.system_pause = False
+                    self.user_com.pause()
                     return
                 else:
                     # function call for sending real time commands to MCU

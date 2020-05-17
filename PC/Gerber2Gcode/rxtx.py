@@ -2,8 +2,12 @@ import pprint
 import serial
 import threading
 import sys
+import os
 import pathgenerator
 from serial.tools import list_ports
+
+def clear():
+    os.system('cls' if os.name=='nt' else 'clear')
 
 pp = pprint.PrettyPrinter(indent=2)
 
@@ -17,6 +21,7 @@ class SerialCom(serial.Serial):
 
     def IntSerialport(self):
         # std. settings for uart
+        clear()
         mcu_descdict = {
             'darwin': ['nEDBG CMSIS-DAP'],
             'win32': ['Seriell USB-enhet', 'Curiosity Virtual COM Port '],
@@ -83,16 +88,17 @@ class SerialCom(serial.Serial):
         while usercom.run_tx_flag:
             for data_line in data:
                 if data_line == '#':
-                    usercom.run_tx_flag = False
+                    usercom.runflag(False)
                     mcucom.last_line_flag = True
-                elif data_line != ' ' or data_line != '' and usercom.run_tx_flag:
+                elif data_line != ' ' or data_line != '' and usercom.read_runflag():
                     tx_data = bytes(data_line, 'utf-8')
                     self.write(tx_data)
                     mcucom.comflag_state(tx_data, usercom)
+        print(">> Data transmission done")
 
     def Settings(self):
         # show std. settings
-
+        clear()
         s = self.get_settings()
         pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
         pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
@@ -108,8 +114,7 @@ class SerialCom(serial.Serial):
             i = input("Do you want to change settings Y/N: ")
 
         while i == "Y":
-
-            def settings(i):
+            def set(i):
                 switcher = {
                     0: 'baudrate',
                     1: 'bytesize',
@@ -123,13 +128,13 @@ class SerialCom(serial.Serial):
                 print(x, settings(x), sep="-")
 
             i = input("What setting do you want to change? 0-4: ")
-            set_value = settings(int(i))
+            set_value = set(int(i))
 
             while set_value == "invalid setting":
                 print("invalid input!")
                 i = input("What setting do you want to change? 0-4: ")
 
-                set_value = settings(int(i))
+                set_value = set(int(i))
 
             i = input("Enter new value: ")
 
@@ -155,7 +160,9 @@ class SerialCom(serial.Serial):
             while not (i == "Y" or i == "N"):
                 print("invalid input!")
                 i = input("Change more settings Y/N: ")
-        return
+
+
+
 
 
 class UserCom:
@@ -177,7 +184,9 @@ class UserCom:
         "load file": "F",
         "create new file": 'G',
         "real time command": "R",
-        "help": "H"
+        "help": "H",
+        "log": "L",
+        "delete log": "D"
     }
 
     system_promt = "SYSTEM: {}"
@@ -213,32 +222,41 @@ class UserCom:
             #Interal commands used in Python program
             if user_message == "?":
                 pp.pprint('Current settings are: ')
-                self.serial_class.settings()
+                self.serial_class.Settings()
 
             elif user_message == "F":
+                clear()
                 self.data, self.data_name = load_file()
 
             elif user_message == 'G':
                 create_gfile()
 
             elif user_message == 'H':
-                print(self.help_promt.format("Defined baudrate: " + str(self.s.get("baudrate")),
-                                            "Max RX/TX bytesize: " + str(self.s.get("bytesize")),
-                                            "RX/TX parity enabled: " + str(self.s.get("parity")),
-                                            "RX/TX stopbits: " + str(self.s.get("stopbits")),
-                                            "Define timeout(sec): " + str(self.s.get("timeout")),
+                clear()
+                s = self.serial_class.get_settings()
+                print(self.help_promt.format("Defined baudrate: " + str(s.get("baudrate")),
+                                            "Max RX/TX bytesize: " + str(s.get("bytesize")),
+                                            "RX/TX parity enabled: " + str(s.get("parity")),
+                                            "RX/TX stopbits: " + str(s.get("stopbits")),
+                                            "Define timeout(sec): " + str(s.get("timeout")),
                                             self.data_name))
+            elif user_message == 'L':
+                clear()
+                for line in McuCom.resieved_message_log:
+                    print(line)
+
+            elif user_message == 'D':
+                McuCom.clearlog()
 
             elif user_message == "P":
-                self.system_pause = True
+                self.pause()
 
             elif user_message == 'R':
                 self.user_comflags = 'R'
-                self.system_pause = True
+                self.pause()
 
             elif user_message == "S":
-                self.system_pause = False
-
+                self.pause()
 
             #External commands sendt to MCU
             else:
@@ -246,22 +264,22 @@ class UserCom:
                     self.serial_class.open()
 
                 if user_inp == 'run':
-                    self.set_tx_runflag(True)
+                    self.runflag(True)
 
                 elif user_inp == "reset":
+                    clear()
                     self.serial_class.cancel_write()
-                    self.set_tx_runflag(False)
+                    self.runflag(False)
                     pp.pprint(self.system_promt.format(user_inp))
 
                 elif user_message == "\x18":
                     self.serial_class.cancel_write()
-                    self.set_tx_runflag(False)
+                    self.runflag(False)
                     pp.pprint(self.system_promt.format(user_inp))
 
                 self.user_comflags = user_inp
                 tx_send = bytes(user_message, 'utf-8')
                 self.serial_class.write(tx_send)
-
 
     def real_time_mode(self, inp):
         self.serial_class.write(b'%')
@@ -275,20 +293,41 @@ class UserCom:
         self.user_comflags = ''
         self.data = ''
         self.data_name = ''
-        self.run_tx_flag = False
+
         self.system_pause = False
 
     def clear_userflag(self):
         self.user_comflags = ''
 
-    def set_tx_runflag(self, condition):
-        self.run_tx_flag = condition
+    @classmethod
+    def pause(cls):
+        if cls.system_pause:
+            cls.system_pause = False
+        else:
+            cls.system_pause = True
+
+    @classmethod
+    def read_pause_flag(cls):
+        return cls.system_pause
+
+    @classmethod
+    def runflag(cls, bool):
+        cls.run_tx_flag = bool
+
+    @classmethod
+    def read_runflag(cls):
+        return cls.run_tx_flag
+
+
+
+
 
 
 class McuCom:
 
     mcu_comflags = []
     command_number = 0
+    last_command_number = 0
     N_line_number = 0
     last_N_line_number = 0
     package_number = 0
@@ -321,6 +360,7 @@ class McuCom:
         b'a': 'RX BUFFER IS READY TO RECEIVE DATA'
     }
     mcu_values = list(mcu_commands.values())
+    resieved_message_log = []
 
     def __call__(self, inp):
         res_mcu_com = self.mcu_commands.get(inp, 'None')
@@ -331,11 +371,13 @@ class McuCom:
                 self.com_withnum_flag = True
                 self.num_line = res_mcu_com
             elif res_mcu_com == 'DATA PACKAGE NR.{} RECEIVED!':
+
                 self.package_number += 1
                 self.command_print(res_mcu_com.format(self.package_number))
                 self.res_mcucom_append(res_mcu_com)
 
             else:
+
                 self.command_print(res_mcu_com)
                 self.res_mcucom_append(res_mcu_com)
 
@@ -349,7 +391,8 @@ class McuCom:
                     self.res_mcucom_append(self.num_line)
 
                     if self.last_line_flag and self.num_res == str(self.N_line_number + 1):
-                        print('>> print done')
+                        print('>> Print done')
+                        self.mcu_comflags.append('Print done')
 
                     self.num_res = ''
                     self.num_line = ''
@@ -363,35 +406,35 @@ class McuCom:
                 self.num_res = ''
                 self.com_withnum_flag = False
 
-
     def comflag_state(self, data, usercom):
         if b'N' in data:
             self.N_line_number += 1
 
         if data == b'\n':
             while len(self.mcu_comflags):
-
-                if not usercom.run_tx_flag:
+                if not usercom.read_runflag():
                     return
 
-                elif usercom.system_pause:
-                    while True:
-                        if not usercom.system_pause:
-                            break
-
-                if self.N_line_number == self.last_N_line_number + 2:
-                    while self.N_line_number != self.last_N_line_number + 1:
+                elif usercom.read_pause_flag():
+                    while usercom.read_pause_flag():
                         if not usercom.run_tx_flag:
+                            return
+                    return
+                elif self.N_line_number > self.last_N_line_number + 1:
+                    while self.N_line_number > self.last_line_flag + 1:
+                        if not usercom.read_runflag():
                             return
                         elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
                             self.clear_mcuflag('LINE NR.{}: EXECUTING')
                             self.last_N_line_number += 1
+                            return
 
                 elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in self.mcu_comflags:
                     self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
                     while True:
                         if 'RX BUFFER IS READY TO RECEIVE DATA' in self.mcu_comflags:
                             self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
+
 
                 elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in self.mcu_comflags:
                     self.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
@@ -413,12 +456,18 @@ class McuCom:
 
                 elif 'DATA PACKAGE NR.{} RECEIVED!' in self.mcu_comflags:
                     self.clear_mcuflag('DATA PACKAGE NR.{} RECEIVED!')
-
-
+                elif 'INSTRUCTION LINE NR.{}' in self.mcu_comflags:
+                    self.clear_mcuflag('INSTRUCTION LINE NR.{}')
 
     def command_print(self, message):
+
+        if self.command_number == self.last_command_number + 5:
+            clear()
+            self.last_command_number = self.command_number
+
         self.command_number += 1
         pp.pprint(self.console_txt.format(self.command_number, message))
+        self.appendlog(self.console_txt.format(self.command_number, message))
 
     def res_mcucom_append(self, mcu_command):
         self.mcu_comflags.append(mcu_command)
@@ -430,12 +479,21 @@ class McuCom:
         self.num_line = False
         self.last_line_flag = False
         self.command_number = 0
+        self.last_command_number = 0
         self.package_number = 0
         self.mcu_comflags.clear()
         self.N_line_number = 0
         self.last_N_line_number = 0
         self.num_line = ''
         self.num_res = ''
+
+    @classmethod
+    def appendlog(cls, message):
+        cls.resieved_message_log.append(message)
+
+    @classmethod
+    def clearlog(cls):
+        cls.resieved_message_log.clear()
 
 
 class SerialThread(threading.Thread):

@@ -3,10 +3,11 @@ import KeyInput
 from keyboard import on_release
 
 
+
 def main():
     #Creating class objects and variables
     uart = rxtx.SerialCom()
-    Usercom = rxtx.UserCom()
+    Usercom = rxtx.UserCom(serial_class=uart)
     Mcucom = rxtx.McuCom()
     KeyClass = KeyInput.KeyboardListener(Usercom)
     start_trans = False
@@ -33,17 +34,20 @@ def main():
             thread_dict[thread_index].start()
             start_trans = True
 
-        elif not Usercom.run_tx_flag and start_trans:
+        elif not Usercom.read_runflag() and start_trans:
             if not thread_dict[thread_index].is_alive():
                 if Usercom.user_comflags == 'abort':
                     Usercom.reset()
+                    start_trans = False
                 elif Usercom.user_comflags == 'reset':
                     Usercom.reset()
                     Mcucom.reset()
-                else:
-                    print('>> Data transmit done')
-                    Usercom.reset()
                     start_trans = False
+                elif 'Print done' in Mcucom.mcu_comflags:
+                    Usercom.reset()
+                    Mcucom.reset()
+                    start_trans = False
+
 
 
 if __name__ == '__main__':
