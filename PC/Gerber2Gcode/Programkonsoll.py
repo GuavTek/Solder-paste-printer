@@ -3,7 +3,6 @@ import KeyInput
 from keyboard import on_release
 
 
-
 def main():
     #Creating class objects and variables
     uart = rxtx.SerialCom()
@@ -13,7 +12,6 @@ def main():
     start_trans = False
     thread_index = 0
     thread_dict = {}
-
     INT_keyboard = on_release(KeyClass)
     uart.IntSerialport()
 

@@ -1,20 +1,18 @@
 import pprint
-import serial
-import threading
-import sys
-import os
 import pathgenerator
+from serial import Serial
+from threading import Thread
 from serial.tools import list_ports
+from sys import platform
+from os import system, name
 
-def clear():
-    os.system('cls' if os.name=='nt' else 'clear')
 
 pp = pprint.PrettyPrinter(indent=2)
 
-class SerialCom(serial.Serial):
+class SerialCom(Serial):
 
     def __init__(self):
-        serial.Serial.__init__(self)
+        Serial.__init__(self)
         self.baudrate = 9600
         self.port = "null"
         self.timeout = 1
@@ -38,7 +36,7 @@ class SerialCom(serial.Serial):
             pp.pprint("HWID: " + y.hwid)
             print('\n')
 
-        system_os = sys.platform
+        system_os = platform
         mcu_desc = mcu_descdict.get(system_os)
 
         # connect to desired device
@@ -62,16 +60,18 @@ class SerialCom(serial.Serial):
         if self.port != "null":
             self.open()
 
+            mcu_ready = []
+
             while not self.is_open:
                 self.open()
             self.write(b'@')
-            x = self.read()
+            mcu_ready.appen(self.read())
 
-            if x == b'o':
+            if b'o' in mcu_ready:
                 print('>> MCU Connected')
                 print(">> To show system commands type: <help>")
             else:
-                while x != b'o':
+                while b'o' not in mcu_ready:
                     x = self.read()
 
     def RX_routine(self):
@@ -162,9 +162,6 @@ class SerialCom(serial.Serial):
                 i = input("Change more settings Y/N: ")
 
 
-
-
-
 class UserCom:
     new_command = False
     user_comflags = ''
@@ -221,6 +218,7 @@ class UserCom:
         if user_inp in self.user_commands.keys():
             #Interal commands used in Python program
             if user_message == "?":
+                clear()
                 pp.pprint('Current settings are: ')
                 self.serial_class.Settings()
 
@@ -229,6 +227,7 @@ class UserCom:
                 self.data, self.data_name = load_file()
 
             elif user_message == 'G':
+                clear()
                 create_gfile()
 
             elif user_message == 'H':
@@ -281,6 +280,7 @@ class UserCom:
                 tx_send = bytes(user_message, 'utf-8')
                 self.serial_class.write(tx_send)
 
+    #Method for sending real time commands to mcu
     def real_time_mode(self, inp):
         self.serial_class.write(b'%')
         for send_command in inp:
@@ -288,17 +288,17 @@ class UserCom:
             self.serial_class.write(send_command)
         self.serial_class.write(b'\n')
 
+    #Method for resetting variables
     def reset(self):
         self.new_command = False
         self.user_comflags = ''
         self.data = ''
         self.data_name = ''
 
-        self.system_pause = False
-
     def clear_userflag(self):
         self.user_comflags = ''
 
+    #classmethod for editing values used globaly
     @classmethod
     def pause(cls):
         if cls.system_pause:
@@ -319,10 +319,6 @@ class UserCom:
         return cls.run_tx_flag
 
 
-
-
-
-
 class McuCom:
 
     mcu_comflags = []
@@ -341,7 +337,9 @@ class McuCom:
     withnum_com = {
         b'R': 'RX',
         b'B': 'Blockbuffer',
-        b'W': 'Blockbuffer Word Overflow'
+        b'W': 'Blockbuffer Word Overflow',
+        b'X': 'X',
+        b'Y': 'Y'
     }
 
     mcu_commands = {
@@ -435,7 +433,6 @@ class McuCom:
                         if 'RX BUFFER IS READY TO RECEIVE DATA' in self.mcu_comflags:
                             self.clear_mcuflag('RX BUFFER IS READY TO RECEIVE DATA')
 
-
                 elif '{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)' in self.mcu_comflags:
                     self.clear_mcuflag('{}: BUFFER OVERFLOW! (WARNING!, UNEXECUTED LINES MAY BE OVERWRITTEN)')
 
@@ -456,6 +453,7 @@ class McuCom:
 
                 elif 'DATA PACKAGE NR.{} RECEIVED!' in self.mcu_comflags:
                     self.clear_mcuflag('DATA PACKAGE NR.{} RECEIVED!')
+
                 elif 'INSTRUCTION LINE NR.{}' in self.mcu_comflags:
                     self.clear_mcuflag('INSTRUCTION LINE NR.{}')
 
@@ -496,7 +494,7 @@ class McuCom:
         cls.resieved_message_log.clear()
 
 
-class SerialThread(threading.Thread):
+class SerialThread(Thread):
     def __init__(self, thread_id, name, target, data, mcu_class, user_class):
         threading.Thread.__init__(self)
         self.thread_id = thread_id
@@ -509,7 +507,10 @@ class SerialThread(threading.Thread):
     def run(self):
         self.target(self.data, self.mcu_class, self.user_class)
 
+
 def create_gfile():
+
+    clear()
     edge_cut_file = input(">> Type in edge cut file name: ")
     paste_file = input(">> Type in paste file name: ")
     file_name = input(">> Type in file name: ")
@@ -531,5 +532,9 @@ def load_file():
     finally:
         file_temp.close()
         return data, filename
+
+
+def clear():
+    system('cls' if name=='nt' else 'clear')
 
 
