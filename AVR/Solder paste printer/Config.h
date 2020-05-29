@@ -12,6 +12,9 @@
 //Enables some extra feedback from printer
 #define VERBOSE_FEEDBACK true
 
+//Send back line number when parser has processed a block
+#define PARSER_LINENUMBER false
+
 //Define clock frequencies
 #define PRESCALE 6
 #define PDIV 8
