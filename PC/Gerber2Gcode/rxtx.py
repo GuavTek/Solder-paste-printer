@@ -87,9 +87,16 @@ class SerialCom(Serial):
         # prepearing a line to be sent
         while usercom.run_tx_flag:
             for data_line in data:
+
+                while usercom.read_pause_flag():
+                    if not usercom.run_tx_flag:
+                        return
+
                 if data_line == '#':
                     usercom.runflag(False)
                     mcucom.last_line_flag = True
+                    return
+
                 elif data_line != ' ' or data_line != '' and usercom.read_runflag():
                     tx_data = bytes(data_line, 'utf-8')
                     self.write(tx_data)
@@ -325,7 +332,7 @@ class McuCom:
     command_number = 0
     last_command_number = 0
     N_line_number = 0
-    last_N_line_number = 0
+    N_line_exe = False
     package_number = 0
     com_withnum_flag = False
     console_txt = '{}. MCU system: {}'
@@ -405,27 +412,34 @@ class McuCom:
                 self.com_withnum_flag = False
 
     def comflag_state(self, data, usercom):
+
         if b'N' in data:
             self.N_line_number += 1
+            if self.N_line_number > 1:
+                self.N_line_exe = True
 
         if data == b'\n':
-            while len(self.mcu_comflags):
+
+            res_message = False
+
+            while not res_message or self.N_line_exe:
+
                 if not usercom.read_runflag():
+                    self.N_line_exe = False
+                    res_message = False
                     return
 
-                elif usercom.read_pause_flag():
-                    while usercom.read_pause_flag():
-                        if not usercom.run_tx_flag:
-                            return
-                    return
-                elif self.N_line_number > self.last_N_line_number + 1:
-                    while self.N_line_number > self.last_line_flag + 1:
-                        if not usercom.read_runflag():
-                            return
-                        elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
-                            self.clear_mcuflag('LINE NR.{}: EXECUTING')
-                            self.last_N_line_number += 1
-                            return
+                elif self.N_line_exe:
+                    if not usercom.read_runflag():
+                        self.N_line_exe = False
+                        res_message = False
+                        return
+
+                    elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
+                        self.clear_mcuflag('LINE NR.{}: EXECUTING')
+                        self.N_line_exe = False
+                        if not len(self.mcu_comflags):
+                            res_message = False
 
                 elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in self.mcu_comflags:
                     self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
@@ -447,15 +461,21 @@ class McuCom:
 
                 elif 'STOP DETECTED!' in self.mcu_comflags:
                     self.clear_mcuflag('STOP DETECTED!')
+                    if not len(self.mcu_comflags):
+                        res_message = False
 
                 elif 'MCU is initalized' in self.mcu_comflags:
                     self.clear_mcuflag('MCU is initalized')
 
                 elif 'DATA PACKAGE NR.{} RECEIVED!' in self.mcu_comflags:
                     self.clear_mcuflag('DATA PACKAGE NR.{} RECEIVED!')
+                    if not len(self.mcu_comflags):
+                        res_message = False
 
                 elif 'INSTRUCTION LINE NR.{}' in self.mcu_comflags:
                     self.clear_mcuflag('INSTRUCTION LINE NR.{}')
+                    if not len(self.mcu_comflags):
+                        res_message = False
 
     def command_print(self, message):
 
