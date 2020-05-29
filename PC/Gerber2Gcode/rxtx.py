@@ -1,13 +1,9 @@
-import pprint
 import pathgenerator
 from serial import Serial
 from threading import Thread
 from serial.tools import list_ports
 from sys import platform
 from os import system, name
-
-
-pp = pprint.PrettyPrinter(indent=2)
 
 class SerialCom(Serial):
 
@@ -30,10 +26,10 @@ class SerialCom(Serial):
 
         # Print device info
         for y in x:
-            pp.pprint(y.name)
-            pp.pprint("Device: " + y.device)
-            pp.pprint("Desc: " + y.description)
-            pp.pprint("HWID: " + y.hwid)
+            print(y.name)
+            print("Device: " + y.device)
+            print("Desc: " + y.description)
+            print("HWID: " + y.hwid)
             print('\n')
 
         system_os = platform
@@ -44,11 +40,11 @@ class SerialCom(Serial):
             if x in y.description:
                 self.port = y.device
                 s = self.get_settings()
-                pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
-                pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
-                pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
-                pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
-                pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
+                print("Defined baudrate: " + str(s.get("baudrate")))
+                print("Max RX/TX bytesize: " + str(s.get("bytesize")))
+                print("RX/TX parity enabled: " + str(s.get("parity")))
+                print("RX/TX stopbits: " + str(s.get("stopbits")))
+                print("Define timeout(sec): " + str(s.get("timeout")))
                 print('\n')
                 break
 
@@ -65,7 +61,7 @@ class SerialCom(Serial):
             while not self.is_open:
                 self.open()
             self.write(b'@')
-            mcu_ready.appen(self.read())
+            mcu_ready.append(self.read())
 
             if b'o' in mcu_ready:
                 print('>> MCU Connected')
@@ -89,13 +85,14 @@ class SerialCom(Serial):
             for data_line in data:
 
                 while usercom.read_pause_flag():
-                    if not usercom.run_tx_flag:
+                    if not usercom.read_runflag():
                         return
+                if not usercom.read_runflag():
+                    return
 
-                if data_line == '#':
+                elif data_line == '#':
                     usercom.runflag(False)
                     mcucom.last_line_flag = True
-                    return
 
                 elif data_line != ' ' or data_line != '' and usercom.read_runflag():
                     tx_data = bytes(data_line, 'utf-8')
@@ -105,14 +102,14 @@ class SerialCom(Serial):
 
     def Settings(self):
         # show std. settings
-        clear()
+
         s = self.get_settings()
-        pp.pprint("Defined baudrate: " + str(s.get("baudrate")))
-        pp.pprint("Max RX/TX bytesize: " + str(s.get("bytesize")))
-        pp.pprint("RX/TX parity enabled: " + str(s.get("parity")))
-        pp.pprint("RX/TX stopbits: " + str(s.get("stopbits")))
-        pp.pprint("Define timeout(sec): " + str(s.get("timeout")))
-        pp.pprint("\n")
+        print("Defined baudrate: " + str(s.get("baudrate")))
+        print("Max RX/TX bytesize: " + str(s.get("bytesize")))
+        print("RX/TX parity enabled: " + str(s.get("parity")))
+        print("RX/TX stopbits: " + str(s.get("stopbits")))
+        print("Define timeout(sec): " + str(s.get("timeout")))
+        print("\n")
 
         i = input("Do you want to change settings Y/N: ")
 
@@ -132,7 +129,7 @@ class SerialCom(Serial):
                 return switcher.get(i, "invalid setting")
 
             for x in range(5):
-                print(x, settings(x), sep="-")
+                print(x, set(x), sep="-")
 
             i = input("What setting do you want to change? 0-4: ")
             set_value = set(int(i))
@@ -190,7 +187,8 @@ class UserCom:
         "real time command": "R",
         "help": "H",
         "log": "L",
-        "delete log": "D"
+        "delete log": "D",
+        "exit" : 'E'
     }
 
     system_promt = "SYSTEM: {}"
@@ -226,8 +224,12 @@ class UserCom:
             #Interal commands used in Python program
             if user_message == "?":
                 clear()
-                pp.pprint('Current settings are: ')
+                print('Current settings are: ')
                 self.serial_class.Settings()
+
+            elif user_message == 'E':
+                self.user_comflags = 'exit'
+                self.runflag(False)
 
             elif user_message == "F":
                 clear()
@@ -276,12 +278,12 @@ class UserCom:
                     clear()
                     self.serial_class.cancel_write()
                     self.runflag(False)
-                    pp.pprint(self.system_promt.format(user_inp))
+                    print(self.system_promt.format(user_inp))
 
                 elif user_message == "\x18":
                     self.serial_class.cancel_write()
                     self.runflag(False)
-                    pp.pprint(self.system_promt.format(user_inp))
+                    print(self.system_promt.format(user_inp))
 
                 self.user_comflags = user_inp
                 tx_send = bytes(user_message, 'utf-8')
@@ -422,24 +424,24 @@ class McuCom:
 
             res_message = False
 
-            while not res_message or self.N_line_exe:
+            while self.N_line_exe or not res_message:
 
                 if not usercom.read_runflag():
                     self.N_line_exe = False
-                    res_message = False
+                    res_message = True
                     return
 
                 elif self.N_line_exe:
                     if not usercom.read_runflag():
                         self.N_line_exe = False
-                        res_message = False
+                        res_message = True
                         return
 
                     elif 'LINE NR.{}: EXECUTING' in self.mcu_comflags:
                         self.clear_mcuflag('LINE NR.{}: EXECUTING')
                         self.N_line_exe = False
                         if not len(self.mcu_comflags):
-                            res_message = False
+                            res_message = True
 
                 elif 'RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN' in self.mcu_comflags:
                     self.clear_mcuflag('RX BUFFER IS FULL! (WARNING! UNREAD DATA MAY BE OVERWRITTEN')
@@ -462,7 +464,7 @@ class McuCom:
                 elif 'STOP DETECTED!' in self.mcu_comflags:
                     self.clear_mcuflag('STOP DETECTED!')
                     if not len(self.mcu_comflags):
-                        res_message = False
+                        res_message = True
 
                 elif 'MCU is initalized' in self.mcu_comflags:
                     self.clear_mcuflag('MCU is initalized')
@@ -470,12 +472,14 @@ class McuCom:
                 elif 'DATA PACKAGE NR.{} RECEIVED!' in self.mcu_comflags:
                     self.clear_mcuflag('DATA PACKAGE NR.{} RECEIVED!')
                     if not len(self.mcu_comflags):
-                        res_message = False
+                        res_message = True
+
 
                 elif 'INSTRUCTION LINE NR.{}' in self.mcu_comflags:
                     self.clear_mcuflag('INSTRUCTION LINE NR.{}')
                     if not len(self.mcu_comflags):
-                        res_message = False
+                        res_message = True
+
 
     def command_print(self, message):
 
@@ -484,7 +488,7 @@ class McuCom:
             self.last_command_number = self.command_number
 
         self.command_number += 1
-        pp.pprint(self.console_txt.format(self.command_number, message))
+        print(self.console_txt.format(self.command_number, message))
         self.appendlog(self.console_txt.format(self.command_number, message))
 
     def res_mcucom_append(self, mcu_command):
@@ -516,7 +520,7 @@ class McuCom:
 
 class SerialThread(Thread):
     def __init__(self, thread_id, name, target, data, mcu_class, user_class):
-        threading.Thread.__init__(self)
+        Thread.__init__(self)
         self.thread_id = thread_id
         self.name = name
         self.data = data

@@ -15,7 +15,7 @@ def main():
     INT_keyboard = on_release(KeyClass)
     uart.IntSerialport()
 
-    while True:
+    while True and not Usercom.user_comflags == 'exit' :
         Mcucom(uart.RX_routine())
 
         # Statement for genarating threads on command.
@@ -45,7 +45,8 @@ def main():
                     Usercom.reset()
                     Mcucom.reset()
                     start_trans = False
-
+    print(">> Closing program")
+    uart.close()
 
 
 if __name__ == '__main__':
