@@ -227,11 +227,11 @@ void TX_read()
 	{
 		if (RX_Full)
 		{
-			USARTn.TXDATAL = 'f';
+			USARTn.TXDATAL = XOFF;
 		} 
 		else
 		{
-			USARTn.TXDATAL = 'a';
+			USARTn.TXDATAL = XON;
 		}
 		
 		prevRX_Full = RX_Full;
@@ -280,16 +280,6 @@ void RTX_FLUSH(){
 	tx_tail = 0;
 	USARTn.RXDATAL;
 	USARTn.RXDATAL;
-}
-
-//TX_Jumpstart Depreceated
-void TX_Jumpstart(){
-	//Check if there is data and we are not sending
-	if ((TX_available() != BUFFER_EMPTY) && !(USARTn.CTRLA & USART_DREIE_bm))
-	{
-		//TX_read();
-		USARTn.CTRLA |= USART_DREIE_bm;
-	}
 }
 
 ISR(USART3_RXC_vect){

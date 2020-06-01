@@ -14,11 +14,11 @@ gc_block theCurrentBlock;
 //The function the RTC calls when triggered
 //Is set by StartDwell
 void (*RTC_Callback[8])(void);
-uint16_t RTC_Times[8];			//The time the function should be called
-uint8_t sortedIndex[8];			//The order the functions should be called
+uint16_t RTC_Times[8];					//The time the function should be called
+uint8_t sortedIndex[8];					//The order the functions should be called
 volatile int8_t indexS = 0;				//The index of sortedIndex, counts number of elements in buffer
-uint8_t bAvail = 0xff;			//Bitmask indicates buffer availability
-volatile uint8_t triggered = 0;			//The number of functions waiting to be run
+uint8_t bAvail = 0xff;					//Bitmask indicates buffer availability
+volatile uint8_t millis = 0;			//Milliseconds since RunDelayedFunctions have been run
 
 uint8_t ScanWord(const char wrd[], uint8_t startIndex, char findChar){
 	for (uint8_t i = startIndex; i < MAX_WORD_SIZE; i++)
@@ -90,7 +90,7 @@ StepCount Length2Step(float length, enum CoordUnit unit){
 	tempLength -= newStep.full;
 
 	//Get micro-steps
-	newStep.micro = round(tempLength * 16);
+	newStep.micro = 0; //round(tempLength * 16);
 	
 	return newStep;
 }
@@ -118,7 +118,7 @@ StepCount LengthZ2Step(float length, enum CoordUnit unit){
 	return newStep;
 }
 
-void InitClock(){
+void InitRTC(){
 	
 	//Wait for registers to synchronize
 	while(RTC.STATUS > 0){}
@@ -141,7 +141,7 @@ void InitClock(){
 
 }
 
-void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
+void Delay(uint16_t waitTime, void (*functionToTrigger)(void)){
 	
 	//Abort if buffer is full
 	if (bAvail == 0)
@@ -156,116 +156,140 @@ void StartTimer(uint16_t waitTime, void (*functionToTrigger)(void)){
 	//Find empty buffer space
 	for (uint8_t i = 0; i < 8; i++)
 	{
-		if (bAvail & 1<<i)
+		if (bAvail & (1 << i))
 		{
 			bAvail &= ~(1<<i);						//Buffer space occupied
-			RTC_Times[i] = newTime;					//Save wake-up time
 			RTC_Callback[i] = functionToTrigger;	//Save function to wake up
 			newIndex = i;
 			break;	
 		}
 	}
 
-	//Check if there is another element in buffer
-	if (indexS > 0)
+
+	//Sort which interrupt should occur first
+	//Uses a modified insertion sort
+		
+	//Disable interrupts
+	cli();
+
+	RTC_Times[sortedIndex[indexS - 1]] -= millis;	//Apply time that have passed
+	millis = 0;
+
+	int8_t i;		//Index the new element should be placed in
+
+	//Move all the shorter times further out in buffer
+	for (i = indexS; i > 0; i--)
 	{
-		//Sort which interrupt should occur first
-		//Uses a modified insertion sort
-		int8_t i;		//Start with rightmost element
-
-		//Move all the shorter times further out in buffer
-		for (i = indexS; i > 0; i--)
+		//Compare time in buffer with new time
+		uint16_t compTime = RTC_Times[sortedIndex[i-1]];
+		if (compTime < newTime)
 		{
-			//Compare time in buffer with new time
-			uint16_t compTime = RTC_Times[sortedIndex[i-1]];
-			if (compTime < newTime)
-			{
-				newTime -= compTime;	//Wait-times relative to previous wait
-				sortedIndex[i] = sortedIndex[i-1];
-			} else {
-				//Found the correct index
-				break;
-			}
+			//Wait-times are relative to previous wait, it cumulates
+			newTime -= compTime;
+
+			//Move item in buffer
+			sortedIndex[i] = sortedIndex[i-1];
+		} else {
+			//Found the correct index, exit loop
+			break;
 		}
-
-		if (i > 0)
-		{
-			RTC_Times[sortedIndex[i-1]] -= newTime;
-		}
-
-		RTC_Times[newIndex] = newTime;
-		sortedIndex[i] = newIndex;
-
-	} 
-	else
-	{
-		sortedIndex[0] = newIndex;
 	}
 
+	//Keep wait-times relative
+	if (i > 0)
+	{
+		RTC_Times[sortedIndex[i-1]] -= newTime;
+	}
 
-	indexS++;
-	
+	sortedIndex[i] = newIndex;		//New item has been sorted
+	RTC_Times[newIndex] = newTime;	//Save wait-time
+	indexS++;						//Increment sortedIndex
+
+	//Re-enable interrupts
+	sei();
+
 	//Enable interrupt
 	RTC.INTCTRL = RTC_OVF_bm;
 }
 
 void RunDelayedFunctions(){
-	//Save current value
-	uint8_t tempTrig = triggered;
-	triggered -= tempTrig;
+	//Save current time
+	uint8_t tempTrig = millis;
+	millis -= tempTrig;
 
-	//Run all the queued functions that have been triggered
-	while (tempTrig > 0)
+	//Apply all of the time
+	for (uint8_t i = indexS - 1; i >= 0; i--)
 	{
-		if (RTC_Times[sortedIndex[indexS - 1]] > tempTrig)
+		if (RTC_Times[sortedIndex[i]] > tempTrig)
 		{
 			//Reduce wait-time
-			RTC_Times[sortedIndex[indexS - 1]] -= tempTrig;
+			RTC_Times[sortedIndex[i]] -= tempTrig;
 			break;
 		} else {
-
-			//Check if index is valid
-			if (indexS > 0)
-			{
-				indexS--;
-				} else {
-				triggered = 0;
-				RTC.INTCTRL &= ~RTC_OVF_bm;
-				ReportEvent(BUFFER_EMPTY, 'R');
-				return;
-			}
-
 			//Set remaining passed time
-			tempTrig -= RTC_Times[sortedIndex[indexS]];
-
-			//Set buffer position as available again
-			bAvail |= 1<<sortedIndex[indexS];
+			tempTrig -= RTC_Times[sortedIndex[i]];
 			
-			//Do something
-			RTC_Callback[sortedIndex[indexS]]();
-
-			//Stop timer when there are no delays
-			if (indexS <= 0)
-			{
-				//Disable interrupt
-				RTC.INTCTRL &= ~RTC_OVF_bm;
-				triggered = 0;
-			}
-
+			RTC_Times[sortedIndex[i]] = 0;
 		}
 	}
+
+	//Run all the queued functions that have been triggered
+	for(uint8_t i = indexS - 1; i >= 0; i--){
+		
+		if (RTC_Times[sortedIndex[i]] > 0)
+		{
+			//Not triggered
+			break;
+		}
+
+		//Check if index is valid
+		if (indexS > 0)
+		{
+			indexS--;
+		} else {
+			millis = 0;
+			RTC.INTCTRL &= ~RTC_OVF_bm;
+			ReportEvent(BUFFER_EMPTY, 'R');
+			return;
+		}
+
+		//Set buffer position as available again
+		bAvail |= 1<<sortedIndex[indexS];
+		
+		//Do something
+		RTC_Callback[sortedIndex[indexS]]();
+
+		//Stop timer when there are no delays waiting
+		if (indexS <= 0)
+		{
+			//Disable interrupt
+			RTC.INTCTRL &= ~RTC_OVF_bm;
+			millis = 0;
+		}
+	}
+
+	
 }
 
+//RTC overflow
 ISR(_VECTOR(3)){
-	//Clear interrupt flag
-	RTC.INTFLAGS = RTC_OVF_bm;
-
-	triggered++;
+	millis++;
 
 	//Check if delay time is done
-	if ((triggered > 100) || (triggered >= RTC_Times[sortedIndex[indexS - 1]]))
+	if ((millis > 200) || (millis >= RTC_Times[sortedIndex[indexS - 1]]))
 	{
 		//Trigger pin interrupt
 		PORTE.OUTCLR = PIN0_bm;
 	}
+
+	//Clear interrupt flag
+	RTC.INTFLAGS = RTC_OVF_bm;
+}
+
+ISR(PORTE_PORT_vect, ISR_NOBLOCK){
+	RunDelayedFunctions();
+
+	//Clear pin interrupt
+	PORTE.OUTSET = PIN0_bm;
+	PORTE.INTFLAGS = PIN0_bm;
 }

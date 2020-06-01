@@ -64,7 +64,7 @@ void PrepStep(void)
         calculate the feedrate, set the stepping direction and set the corresponding step flags
         If delta returns non zero data sets, the steps to be excutetd gets stored in the 'st' block, steping direction is set,
         step flag is set, step data that comes directly from 'theCurrentBlock' gets stored as last position and the counter variables is reset to 1*/
-        if(delta.x.full != 0 || delta.y.full != 0 || delta.x.micro != 0 || delta.y.micro != 0))
+        if(delta.x.full != 0 || delta.y.full != 0 || delta.x.micro != 0 || delta.y.micro != 0)
         {
             if(!(delta.x.full == 0))
             {
@@ -207,6 +207,8 @@ void HomingRoutine(enum MotionModes motion)
 		
 		PerSelect(255, &TCB0);
 		PerSelect(255, &TCB1);
+		
+		start_pos = (1 << START_POS_X) | (1 << START_POS_Y);
 		
 		MotorPrescaleSet(1);
 		
@@ -379,9 +381,9 @@ void PerSelect(uint8_t per, TCB_t *TCBn)
 {   //set the calulated TCB period. Divide by two to set duty cycle at 50%
 	if (per != 0)
 	{
-		uint8_t pulse = round(per/2);
+		uint8_t pulse = per/2;
 		TCBn->CCMPL = per;
-		TCBn->CCMPH = pulse;
+		TCBn->CCMPH = 1;
 	}
 }	
 
@@ -456,7 +458,7 @@ void prescale_select(uint8_t sel)
 uint16_t current_line(uint16_t new_line, uint16_t last_line)
 {	
     //Report back if the line number increases.
-	if (new_line > last_line)
+	if (new_line != last_line)
 	{
 		TX_write('L');
 		SendInt(new_line);
@@ -636,7 +638,7 @@ ISR(TCB1_INT_vect) //TCB1 vector
 
 
 void InitEndSensors(){
-    /*Init interupt capture on event routine, and enable pullup resistor to ensure non floating condition for the coresponding end sensors input pins*/ 
+    /*Init interrupt capture on event routine, and enable pullup resistor to ensure non floating condition for the coresponding end sensors input pins*/ 
 	PORTC.PIN5CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
 	PORTD.PIN1CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
 	PORTD.PIN2CTRL = PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm;
@@ -652,11 +654,11 @@ ISR(PORTC_PORT_vect) //Capture on event interupt vector
 		if (PORTC.IN & PIN5_bm)
 		{
 			//Entering end-sensor
-			TCB1.CTRLB &= ~TCB_CCMPEN_bm;
-			start_pos |= (1 << START_POS_Y);
+			//TCB1.CTRLB &= ~TCB_CCMPEN_bm;
+			//start_pos |= (1 << START_POS_Y);
  			
 			//Reverse Y direction
-			
+			PORTA.OUTSET = PIN5_bm;
 		} 
 		else
 		{
@@ -692,13 +694,16 @@ ISR(PORTD_PORT_vect){
 		{
 			//Entering edge sensor
 			//Disable TCB0 PWM output on PA2
-			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
+			//TCB0.CTRLB &= ~TCB_CCMPEN_bm;
 			//Reset the start position flag
-			start_pos |= (1 << START_POS_X);
+			//start_pos |= (1 << START_POS_X);
+			
+			//Move out
+			PORTC.OUTSET = PIN2_bm;
 		}
-		//Leaving edge sensor
 		else
 		{
+			//Leaving edge sensor
 			//Disable TCB0 PWM output on PA2
 			TCB0.CTRLB &= ~TCB_CCMPEN_bm;
 			//Clear the start position flag

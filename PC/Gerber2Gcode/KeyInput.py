@@ -1,32 +1,32 @@
-import keyboard
-import RXTXlib
+class KeyboardListener:
 
-user_class = None
+    def __init__(self, user_com):
+        self.user_com = user_com
 
-def keyinp(inp):
-    global keys
+    def __call__(self, inp):
+        # abort TX
+        if inp.name == "esc":
+            self.user_com("abort")
+            return
 
-    if inp.name == "esc":
-        user_class("abort")
-        return
+        # routine for handling real time commands
+        elif self.user_com.user_comflags == 'R':
+            if inp.name == "enter":
+                key_input = input()
 
-    elif user_class.user_comflags == 'R':
-        if inp.name == "enter":
-            keys = input()
-            if keys == "stop real time":
-                print(">> Real time command mode disabled")
-                user_class.user_comflags = ''
-                user_class.system_pause = False
-                return
-            else:
-                user_class.real_time_mode(keys)
+                if key_input == "stop real time":
+                    print(">> Real time command mode disabled")
+                    self.user_com.user_comflags = ''
+                    self.user_com.pause()
+                    return
+                else:
+                    # function call for sending real time commands to MCU
+                    self.user_com.real_time_mode(key_input)
 
-
-    elif inp.name == "enter":
-        keys = input()
-        user_class(keys)
-        if user_class.user_comflags == 'R':
-            print('>> Enabled real time command mode')
-        return
-
-int_keyboard = keyboard.on_release(keyinp)
+        # All internal commands are read here, except real time coordiantes
+        # Calls the class UserCom for handling the input string
+        elif inp.name == "enter":
+            key_input = input()
+            self.user_com(key_input)
+            if self.user_com.user_comflags == 'R':
+                print('>> Enabled real time command mode')

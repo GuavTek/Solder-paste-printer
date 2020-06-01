@@ -12,6 +12,9 @@
 //Enables some extra feedback from printer
 #define VERBOSE_FEEDBACK true
 
+//Send back line number when parser has processed a block
+#define PARSER_LINENUMBER false
+
 //Define clock frequencies
 #define PRESCALE 6
 #define PDIV 8
@@ -33,9 +36,9 @@
 #define IMPERIAL_STEP_Z_LENGTH 0.0001968	//Length of a step in z-direction in freedom eagles
 
 //axis offset from edge sensors in full-steps
-#define STD_OFFSET_X 100
-#define STD_OFFSET_Y 100
-#define STD_OFFSET_Z 10
+#define STD_OFFSET_X 0
+#define STD_OFFSET_Y 0
+#define STD_OFFSET_Z 0
 
 //G-code parameters
 #define MAX_G_LINE 0
@@ -54,5 +57,9 @@
 #define CMD_PAUSE 0x9
 #define CMD_ABORT 0x18
 #define CMD_SKIP 0x7F
+
+//Standard flow-control chars
+#define XOFF 'f' //0x13
+#define XON 'a' //0x11
 
 #endif /* CONFIG_H_ */

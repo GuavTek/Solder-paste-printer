@@ -14,20 +14,38 @@ inline bool IgnoreChar(char in);
 //Will look for the end of a word, returns true when a new word is detected
 inline bool WordEnd(char in);
 
-//Adds offset to axes that changed
-void OffsetAdd();
+//Set all flags false
+void ResetBlockState();
 
-//Discards unchanged axis values (For incremental mode)
-void DiscardUnchanged();
-
-//Reverts changed axes to previous modal value
-void RevertModal();
+//Will sort out modal values as needed, then write block to buffer
+inline void PushBlock();
 
 //Write to block buffer
-void WriteBlockBuffer(gc_block block);
+void WriteBlockBuffer();
 
 //Will parse and insert command-values in gc-block
 ReturnCodes ParseWord();
+
+//Flags indicating which parameters have been written
+struct BlockState {
+	bool xPos : 1;
+	bool yPos : 1;
+	bool zPos : 1;
+	bool xArc : 1;
+	bool yArc : 1;
+	bool zArc : 1;
+	bool arcRadius : 1;
+	bool mode : 1;
+	bool coordMode : 1;
+	bool coordUnit : 1;
+	bool dispenseEnable : 1;
+	bool dispenseRate : 1;
+	bool blockNumber : 1;
+	bool moveSpeed : 1;
+	bool param : 1;
+};
+
+struct BlockState blockState;
 
 uint8_t blockBufferHead = 0;
 uint8_t blockBufferTail = 0;
@@ -35,13 +53,14 @@ gc_block blockBuffer[BLOCK_BUFFER_SIZE];
 
 uint8_t colons;						//For ignoring comments
 
-gc_block currentBlock;				//The block being edited, retains previous data
-uint8_t axisChange;					//Bitmask indicating which axes have changed this block
+gc_block inputBlock;				//The block being edited
+gc_block modalBlock;				//Saves modal block-values
+int parameter = 0;					//P-value of blocks
 uint8_t wordIndex = 0;				//How long the word being parsed is now
 bool freshBlock = true;				//True if currentblock contains no new info
 char currentWord[MAX_WORD_SIZE];	//Buffer for the word being parsed
-uint8_t modalPos;					//Buffer position of the last modal command
-bool readyBlock = false;
+bool readyBlock = false;			//True when a block is waiting to be put in buffer
+bool modal = true;					//Decides which block to place in buffer
 
 int* selectedAxis;					//Used to increment axisOffset
 Vector3 axisOffset;					//Current offset
@@ -63,7 +82,7 @@ ReturnCodes ParseStream(){
 		{
 			//ReportStatus(BUFFER_AVAILABLE);
 			readyBlock = false;
-			WriteBlockBuffer(currentBlock);
+			WriteBlockBuffer();
 			return NONE;
 		}
 		
@@ -86,90 +105,14 @@ ReturnCodes ParseStream(){
 		wordIndex = 0;	
 
 		if(freshBlock == false){
+			//Process the new block and place it in buffer
 			colons = 0;
 			freshBlock = true;
 
-			//Check if it is an offset block
-			if (currentBlock.motion == Offset_WCS)
-			{
-				DiscardUnchanged();
+			PushBlock();
 
-				//Set work coordinates
-				workCoordSystems[selWCS].x = currentBlock.pos.x.full;
-				workCoordSystems[selWCS].y = currentBlock.pos.y.full;
-				workCoordSystems[selWCS].z = currentBlock.pos.z.full;
-
-				//Reset LCS
-				localCoordSystem.x = 0;
-				localCoordSystem.y = 0;
-				localCoordSystem.z = 0;
-
-				//Set current offset
-				axisOffset = workCoordSystems[selWCS];
-
-				//Reset to last modal block
-				RevertModal();
-			} else if (currentBlock.motion == Offset_posReg)
-			{
-				DiscardUnchanged();
-
-				//Set current offset
-				axisOffset.x = currentBlock.pos.x.full;
-				axisOffset.y = currentBlock.pos.y.full;
-				axisOffset.z = currentBlock.pos.z.full;
-
-				//Reset to last modal block
-				RevertModal();
-			} else if (currentBlock.motion == Offset_LCS)
-			{
-				DiscardUnchanged();
-
-				//Set local offset
-				localCoordSystem.x = currentBlock.pos.x.full;
-				localCoordSystem.y = currentBlock.pos.y.full;
-				localCoordSystem.z = currentBlock.pos.z.full;
-
-				//Set current offset
-				axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
-				axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
-				axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
-
-				//Reset to last modal block
-				RevertModal();
-			} else if (currentBlock.motion == Offset_Sel) {
-				DiscardUnchanged();
-
-				//Reset LCS
-				localCoordSystem.x = 0;
-				localCoordSystem.y = 0;
-				localCoordSystem.z = 0;
-
-				//Set current offset
-				axisOffset = workCoordSystems[selWCS];
-
-				//Reset to last modal block
-				RevertModal();
-			} else {
-				//Push the block into buffer unless it is full
-
-				if (currentBlock.coordinateMode == absolute)
-				{
-					OffsetAdd();
-				} else {
-					DiscardUnchanged();
-				}
-
-				readyBlock = true;
-				if(BlockBufferAvailable() == BUFFER_FULL){
-					ReportEvent(BUFFER_FULL, 'B');
-					return BUFFER_FULL;
-				} else {
-					readyBlock = false;
-					WriteBlockBuffer(currentBlock);
-				}
-			}
-			axisChange = 0;
-			ReportEvent(NEW_BLOCK, 0);
+			ResetBlockState();
+			ReportEvent(NEW_BLOCK, inputBlock.blockNumber);
 			return NEW_BLOCK;
 		}
 	}
@@ -177,6 +120,7 @@ ReturnCodes ParseStream(){
 	//Checks if a new word has started
 	if (WordEnd(nextChar)){
 		if(ParseWord() == NONE){
+			//Indicate new info if there are no errors
 			freshBlock = false;
 		}
 		wordIndex = 0;
@@ -199,7 +143,7 @@ ReturnCodes ParseWord(){
 	int num;
 	//uint16_t fraction = 0;
 	//uint8_t precision = 0;
-	static int parameter = 0;
+	
 	
 	//Return if word is too short
 	if (wordIndex < 2)
@@ -255,36 +199,43 @@ ReturnCodes ParseWord(){
 				
 			case 'F': {
 				//Feedrate
-				currentBlock.moveSpeed = num;
+				inputBlock.moveSpeed = num;
+				blockState.moveSpeed = true;
 				break;
 			}
 			case 'G':{
 				//Prep commands
 				switch(num){
 					case 0: {
-						currentBlock.motion = Rapid_position;
+						inputBlock.motion = Rapid_position;
+						blockState.mode = true;
 						break;
 					}
 					case 1: {
-						currentBlock.motion = Linear_interpolation;
+						inputBlock.motion = Linear_interpolation;
+						blockState.mode = true;
 						break;
 					}
 					case 2: {
-						currentBlock.motion = Arc_CW;
+						inputBlock.motion = Arc_CW;
+						blockState.mode = true;
 						break;
 					}
 					case 3: {
-						currentBlock.motion = Arc_CCW;
+						inputBlock.motion = Arc_CCW;
+						blockState.mode = true;
 						break;
 					}
 					case 4: {
-						currentBlock.motion = Dwell;
-						currentBlock.dwellTime = parameter;
+						inputBlock.motion = Dwell;
+						blockState.mode = true;
+						//inputBlock.dwellTime = parameter;
 						break;
 					}
 					case 10: {
 						//Write to current WCS
-						currentBlock.motion = Offset_WCS;
+						inputBlock.motion = Offset_WCS;
+						blockState.mode = true;
 						break;
 					}
 					case 17: {
@@ -303,15 +254,18 @@ ReturnCodes ParseWord(){
 						break;
 					}
 					case 20: {
-						currentBlock.coordinateUnit = Inch;
+						inputBlock.coordinateUnit = Inch;
+						blockState.coordUnit = true;
 						break;
 					}
 					case 21: {
-						currentBlock.coordinateMode = millimeter;
+						inputBlock.coordinateUnit = millimeter;
+						blockState.coordUnit = true;
 						break;
 					}
 					case 28: {
-						currentBlock.motion = Home;
+						inputBlock.motion = Home;
+						blockState.mode = true;
 						break;
 					}
 					case 45: {
@@ -335,27 +289,32 @@ ReturnCodes ParseWord(){
 						break;
 					}
 					case 50: {
-						//Position register offset
-						currentBlock.motion = Offset_posReg;
+						//Position register offset, currently only works with absolute positions
+						inputBlock.motion = Offset_posReg;
+						blockState.mode = true;
 						break;
 					}
 					case 52: {
 						//Local coordinate system
-						currentBlock.motion = Offset_LCS;
+						inputBlock.motion = Offset_LCS;
+						blockState.mode = true;
 						break;
 					}
 					case 54: case 55: case 56: case 57: case 58: case 59: {
 						//Work coordinate system
 						selWCS = num - 54;
-						currentBlock.motion = Offset_Sel;	//Set to LCS to recalculate axisOffset
+						inputBlock.motion = Offset_Sel;	//Set to LCS to recalculate axisOffset
+						blockState.mode = true;
 						break;
 					}
 					case 90: {
-						currentBlock.coordinateMode = absolute;
+						inputBlock.coordinateMode = absolute;
+						blockState.coordMode = true;
 						break;
 					}
 					case 91: {
-						currentBlock.coordinateMode = incremental;
+						inputBlock.coordinateMode = incremental;
+						blockState.coordMode = true;
 						break;
 					}
 				}
@@ -364,20 +323,20 @@ ReturnCodes ParseWord(){
 			
 			case 'I':{
 				//Arc center X
-				currentBlock.arcCentre.x = Length2Step(val, currentBlock.coordinateUnit);
-				currentBlock.arcCentre.x.full += axisOffset.x;
+				inputBlock.arcCentre.x = Length2Step(val, inputBlock.coordinateUnit);
+				blockState.xArc = true;
 				break;	
 			}
 			case 'J':{
 				//Arc center Y
-				currentBlock.arcCentre.y = Length2Step(val, currentBlock.coordinateUnit);
-				currentBlock.arcCentre.y.full += axisOffset.y;
+				inputBlock.arcCentre.y = Length2Step(val, inputBlock.coordinateUnit);
+				blockState.yArc = true;
 				break;
 			}
 			case 'K':{
 				//Arc center Z
-				currentBlock.arcCentre.z = LengthZ2Step(val, currentBlock.coordinateUnit);
-				currentBlock.arcCentre.z.full += axisOffset.z;
+				inputBlock.arcCentre.z = LengthZ2Step(val, inputBlock.coordinateUnit);
+				blockState.zArc = true;
 				break;	
 			}
 			case 'M':{
@@ -385,35 +344,41 @@ ReturnCodes ParseWord(){
 				switch(num){
 					case 0: {
 						//Compulsory stop (Pause)
-						currentBlock.motion = Pause;
+						inputBlock.motion = Pause;
+						blockState.mode = true;
 						break;
 					}
 					case 1: {
 						//Optional stop (Pause)
 						if (OPTIONAL_STOP)
 						{
-							currentBlock.motion = Pause;
+							inputBlock.motion = Pause;
+							blockState.mode = true;
 						}
 						break;
 					}
 					case 2: {
 						//End of program
-						currentBlock.motion = Stop;
+						inputBlock.motion = Stop;
+						blockState.mode = true;
 						break;
 					}
 					case 3: case 4: {
 						//Spindle (dispenser) on
-						currentBlock.dispenseEnable = true;
+						inputBlock.dispenseEnable = true;
+						blockState.dispenseEnable = true;
 						break;
 					}
 					case 5: {
 						//Spindle (dispenser) off
-						currentBlock.dispenseEnable = false;
+						inputBlock.dispenseEnable = false;
+						blockState.dispenseEnable = true;
 						break;
 					}
 					case 30: {
 						//End of program, return to program top
-						currentBlock.motion = Stop;
+						inputBlock.motion = Stop;
+						blockState.mode = true;
 						break;
 					}
 				}
@@ -421,7 +386,8 @@ ReturnCodes ParseWord(){
 			}
 			case 'N':{
 				//Line number
-				currentBlock.blockNumber = num;
+				inputBlock.blockNumber = num;
+				blockState.blockNumber = true;
 				return NONE;
 			}
 			case 'O':{
@@ -432,34 +398,37 @@ ReturnCodes ParseWord(){
 			case 'P':{
 				//Parameter for G and M
 				parameter = num;
+				blockState.param = true;
 				break;
 			}
 			case 'R':{
 				//Arc radius
-				currentBlock.arcRadius = 0; //Not implemented
+				inputBlock.arcRadius = 0; //Not implemented
+				blockState.arcRadius = true;
 				break;
 			}
 			case 'S':{
 				//Spindle speed
-				currentBlock.dispenseRate = num;
+				inputBlock.dispenseRate = num;
+				blockState.dispenseRate = true;
 				break;
 			}
 			case 'X':{
 				//Position X
-				currentBlock.pos.x = Length2Step(val, currentBlock.coordinateUnit);
-				axisChange |= 1 << 0;
+				inputBlock.pos.x = Length2Step(val, inputBlock.coordinateUnit);
+				blockState.xPos = true;
 				break;
 			}
 			case 'Y':{
 				//Position Y
-				currentBlock.pos.y = Length2Step(val, currentBlock.coordinateUnit);
-				axisChange |= 1 << 1;
+				inputBlock.pos.y = Length2Step(val, inputBlock.coordinateUnit);
+				blockState.yPos = true;
 				break;
 			}
 			case 'Z':{
 				//Position Z
-				currentBlock.pos.z = LengthZ2Step(val, currentBlock.coordinateUnit);
-				axisChange |= 1 << 2;
+				inputBlock.pos.z = LengthZ2Step(val, inputBlock.coordinateUnit);
+				blockState.zPos = true;
 				break;
 			}
 			default:{
@@ -471,43 +440,22 @@ ReturnCodes ParseWord(){
 	return NONE;
 }
 
-void OffsetAdd (){
-	if (axisChange & (1 << 0))
-	{
-		currentBlock.pos.x.full += axisOffset.x;
-	}
-	if (axisChange & (1 << 1))
-	{
-		currentBlock.pos.y.full += axisOffset.y;
-	}
-	if (axisChange & (1 << 2))
-	{
-		currentBlock.pos.z.full += axisOffset.z;
-	}
-}
-
-void DiscardUnchanged (){
-	if (!(axisChange & 1 << 0))
-	{
-		currentBlock.pos.x.full = 0;
-		currentBlock.pos.x.micro = 0;
-	}
-	if (!(axisChange & 1 << 1))
-	{
-		currentBlock.pos.y.full = 0;
-		currentBlock.pos.y.micro = 0;
-	}
-	if (!(axisChange & 1 << 2))
-	{
-		currentBlock.pos.z.full = 0;
-		currentBlock.pos.z.micro = 0;
-	}
-}
-
-void RevertModal(){
-	currentBlock.moveSpeed = blockBuffer[modalPos].moveSpeed;
-	currentBlock.pos = blockBuffer[modalPos].pos;
-	currentBlock.motion = blockBuffer[modalPos].motion;
+void ResetBlockState(){
+	blockState.xPos = false;
+	blockState.yPos = false;
+	blockState.zPos = false;
+	blockState.xArc = false;
+	blockState.yArc = false;
+	blockState.zArc = false;
+	blockState.arcRadius = false;
+	blockState.mode = false;
+	blockState.coordMode = false;
+	blockState.coordUnit = false;
+	blockState.dispenseEnable = false;
+	blockState.dispenseRate = false;
+	blockState.blockNumber = false;
+	blockState.moveSpeed = false;
+	blockState.param = false;
 }
 
 void InitParser(){
@@ -515,7 +463,6 @@ void InitParser(){
 	wordIndex = 0;
 	blockBufferHead = 0;
 	blockBufferTail = 0;
-	modalPos = 0;
 	
 	//Reset offset
 	workCoordSystems[0].x = STD_OFFSET_X;
@@ -524,22 +471,25 @@ void InitParser(){
 	selWCS = 0;
 	axisOffset = workCoordSystems[0];
 
-	//Set default block values
-	currentBlock.pos.x.full = STD_OFFSET_X;
-	currentBlock.pos.x.micro = 0;
-	currentBlock.pos.y.full = STD_OFFSET_Y;
-	currentBlock.pos.y.micro = 0;
-	currentBlock.pos.z.full = STD_OFFSET_Z;
-	currentBlock.pos.z.micro = 0;
-	currentBlock.motion = Home;
-	currentBlock.dispenseRate = 0;
-	currentBlock.moveSpeed = 3;
-	currentBlock.dispenseEnable = false;
-	currentBlock.dwellTime = 0;
-	currentBlock.coordinateMode = absolute;
-	currentBlock.coordinateUnit = millimeter;
+	//Reset modal values to default
+	modalBlock.pos.x.full = STD_OFFSET_X;
+	modalBlock.pos.x.micro = 0;
+	modalBlock.pos.y.full = STD_OFFSET_Y;
+	modalBlock.pos.y.micro = 0;
+	modalBlock.pos.z.full = STD_OFFSET_Z;
+	modalBlock.pos.z.micro = 0;
+	modalBlock.motion = Rapid_position;
+	modalBlock.dispenseRate = 0;
+	modalBlock.moveSpeed = 5;
+	modalBlock.dispenseEnable = false;
+	modalBlock.dwellTime = 0;
+	modalBlock.coordinateMode = absolute;
+	modalBlock.coordinateUnit = millimeter;
+
+	//Send printer head home
+	inputBlock.motion = Home;
 	
-	WriteBlockBuffer(currentBlock);
+	PushBlock();
 }
 
 inline bool IgnoreChar(char in){
@@ -592,6 +542,200 @@ inline bool WordEnd(char in){
 	return true;
 }
 
+inline void PushBlock(){
+	
+	//Check if it is a modal block or not
+	if (inputBlock.motion == Offset_WCS)
+	{
+
+		//Set work coordinates
+		if (blockState.xPos)
+		{
+			workCoordSystems[selWCS].x = inputBlock.pos.x.full;
+		} else {
+			workCoordSystems[selWCS].x = 0;
+		}
+		if (blockState.yPos)
+		{
+			workCoordSystems[selWCS].y = inputBlock.pos.y.full;
+		} else {
+			workCoordSystems[selWCS].y = 0;
+		}
+		if (blockState.zPos)
+		{
+			workCoordSystems[selWCS].z = inputBlock.pos.z.full;
+		} else {
+			workCoordSystems[selWCS].z = 0;
+		}
+
+		//Reset LCS
+		localCoordSystem.x = 0;
+		localCoordSystem.y = 0;
+		localCoordSystem.z = 0;
+
+		//Set current offset
+		axisOffset = workCoordSystems[selWCS];
+
+		//Reset motionMode
+		inputBlock.motion = modalBlock.motion;
+
+	} else if (inputBlock.motion == Offset_posReg)
+	{
+		//Set current offset
+		if (blockState.xPos)
+		{
+			axisOffset.x = inputBlock.pos.x.full;
+		} else {
+			axisOffset.x = 0;
+		}
+		if (blockState.yPos)
+		{
+			axisOffset.y = inputBlock.pos.y.full;
+		} else {
+			axisOffset.y = 0;
+		}
+		if (blockState.zPos)
+		{
+			axisOffset.z = inputBlock.pos.z.full;
+		} else {
+			axisOffset.z = 0;
+		}
+
+		//Reset motionMode
+		inputBlock.motion = modalBlock.motion;
+
+	} else if (inputBlock.motion == Offset_LCS)
+	{
+		//Set local offset
+		if (blockState.xPos)
+		{
+			localCoordSystem.x = inputBlock.pos.x.full;
+		} else {
+			localCoordSystem.x = 0;
+		}
+		if (blockState.yPos)
+		{
+			localCoordSystem.y = inputBlock.pos.y.full;
+		} else {
+			localCoordSystem.y = 0;
+		}
+		if (blockState.zPos)
+		{
+			localCoordSystem.z = inputBlock.pos.z.full;
+		} else {
+			localCoordSystem.z = 0;
+		}
+
+		//Set current offset
+		axisOffset.x = workCoordSystems[selWCS].x + localCoordSystem.x;
+		axisOffset.y = workCoordSystems[selWCS].y + localCoordSystem.y;
+		axisOffset.z = workCoordSystems[selWCS].z + localCoordSystem.z;
+
+		//Reset motionMode
+		inputBlock.motion = modalBlock.motion;
+
+	} else if (inputBlock.motion == Offset_Sel) {
+		//Reset LCS
+		localCoordSystem.x = 0;
+		localCoordSystem.y = 0;
+		localCoordSystem.z = 0;
+
+		//Set current offset
+		axisOffset = workCoordSystems[selWCS];
+
+		//Reset motionMode
+		inputBlock.motion = modalBlock.motion;
+
+	} else if (inputBlock.motion == Dwell)
+	{
+		if (blockState.param)
+		{
+			inputBlock.dwellTime = parameter;
+			modal = false;
+			WriteBlockBuffer();
+		} else {
+			//Error, No time set?
+		}
+
+		//Reset motionMode
+		inputBlock.motion = modalBlock.motion;
+
+	} else if (inputBlock.motion == Home)
+	{
+		modal = false;
+		WriteBlockBuffer();
+	} else {
+		//Modal operations
+
+		//Save modal values
+		if (blockState.coordMode) {
+			modalBlock.coordinateMode = inputBlock.coordinateMode;
+		}
+
+		if (blockState.coordUnit) {
+			modalBlock.coordinateUnit = inputBlock.coordinateUnit;
+		}
+		
+		if (blockState.xPos) {
+			modalBlock.pos.x = inputBlock.pos.x;
+			if (modalBlock.coordinateMode == absolute) {
+				modalBlock.pos.x.full += axisOffset.x;
+			}
+		} else if(modalBlock.coordinateMode == incremental) {
+			modalBlock.pos.x.full = 0;
+			modalBlock.pos.x.micro = 0;
+		}
+
+		if (blockState.yPos) {
+			modalBlock.pos.y = inputBlock.pos.y;
+			if (modalBlock.coordinateMode == absolute) {
+				modalBlock.pos.y.full += axisOffset.y;
+			}
+		} else if(modalBlock.coordinateMode == incremental) {
+			modalBlock.pos.y.full = 0;
+			modalBlock.pos.y.micro = 0;
+		}
+
+		if (blockState.zPos) {
+			modalBlock.pos.z = inputBlock.pos.z;
+			if(modalBlock.coordinateMode == absolute) {
+				modalBlock.pos.z.full += axisOffset.z;
+			}
+		} else if(modalBlock.coordinateMode == incremental) {
+			modalBlock.pos.z.full = 0;
+			modalBlock.pos.z.micro = 0;
+		}	
+		
+		if (blockState.mode) {
+			modalBlock.motion = inputBlock.motion;
+		}
+
+		if (blockState.dispenseEnable)
+		{
+			modalBlock.dispenseEnable = inputBlock.dispenseEnable;
+		} 
+
+		if (blockState.dispenseRate)
+		{
+			modalBlock.dispenseRate = inputBlock.dispenseRate;
+		} 
+
+		if (blockState.blockNumber)
+		{
+			modalBlock.blockNumber = inputBlock.blockNumber;
+		}
+
+		if (blockState.moveSpeed)
+		{
+			modalBlock.moveSpeed = inputBlock.moveSpeed;
+		} 
+
+		//Put the block into buffer
+		modal = true;
+		WriteBlockBuffer();
+	}
+}
+
 ReturnCodes BlockBufferAvailable(){
 	if(blockBufferTail == blockBufferHead){
 		return BUFFER_EMPTY;
@@ -610,7 +754,13 @@ ReturnCodes BlockBufferAvailable(){
 	return BUFFER_AVAILABLE;
 }
 
-void WriteBlockBuffer(gc_block block){
+void WriteBlockBuffer(){
+	if(BlockBufferAvailable() == BUFFER_FULL){
+		ReportEvent(BUFFER_FULL, 'B');
+		readyBlock = true;
+		return;
+	}
+	
 	blockBufferHead++;
 
 	if (blockBufferHead >= BLOCK_BUFFER_SIZE)
@@ -618,25 +768,25 @@ void WriteBlockBuffer(gc_block block){
 		blockBufferHead = 0;
 	}
 
-	blockBuffer[blockBufferHead] = block;
+	if (modal)
+	{
+		blockBuffer[blockBufferHead] = modalBlock;
+	} else {
+		blockBuffer[blockBufferHead] = inputBlock;
+	}
 
-	//Revert non-modal commands
-	if (block.motion == Dwell)
+	//Set position to local zero if homeing
+	if (inputBlock.motion == Home)
 	{
-		RevertModal();
-	} else if (block.motion == Home)
-	{
-		//Set position to local zero if homeing
-		currentBlock.pos.x.full = axisOffset.x;
-		currentBlock.pos.y.full = axisOffset.y;
-		currentBlock.pos.z.full = axisOffset.z;
-		currentBlock.motion = Rapid_position;
+		inputBlock.pos.x.full = axisOffset.x;
+		inputBlock.pos.y.full = axisOffset.y;
+		inputBlock.pos.z.full = axisOffset.z;
+		inputBlock.motion = Rapid_position;
 		readyBlock = true;
+		modal = false;
+	} else {
+		readyBlock = false;
 	}
-	else {
-		modalPos = blockBufferHead;
-	}
-
 }
 
 gc_block ReadBlockBuffer(){

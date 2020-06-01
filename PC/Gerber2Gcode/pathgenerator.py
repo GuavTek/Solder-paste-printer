@@ -10,14 +10,13 @@ import numpy as np
 import math
 from sklearn import preprocessing
 
-#Declering Filepaths
-filepath1 = 'SwitchingSupply-Edge_Cuts.gbr'
-#filepath2 = 'SwitchingSupply-F_Paste.gbr'
-filepath2 = 'AVR proto board-F_Paste.gbr'
-filepath3 = 'testskrive.txt'
+##Declering Filepaths
+#filepath1 = 'SwitchingSupply-Edge_Cuts.gbr'
+##filepath2 = 'SwitchingSupply-F_Paste.gbr'
+#filepath2 = 'AVR proto board-F_Paste.gbr'
+#filepath3 = 'testskrive.txt'
 
 def create_G_file(filepath1, filepath2, filepath3):
-
    #Declering Variabels
    F = 0
    N = 0
@@ -60,7 +59,7 @@ def create_G_file(filepath1, filepath2, filepath3):
                if 'C' in string:
                    shape = 'C'
                apature_list.append(string)
-            
+               
    #Finding the Apature names
            if string[:1] == 'D':
                D = string.translate({ord(i): None for i in '*'})
@@ -70,7 +69,7 @@ def create_G_file(filepath1, filepath2, filepath3):
            if string[:4] == 'G36*':
                start_placement = 2
                component_list.append(D)
-            
+               
    #Ending Free drawing        
            if string[:4] == 'G37*':
                globals()['edge_free_0%d' % F] = free_drawing
@@ -94,8 +93,8 @@ def create_G_file(filepath1, filepath2, filepath3):
                    placement_list.append(string)
                    component_list.append(D)
            k += 1
-
-
+   
+   
    #Converting data form Edge-Cut file
    i = 0
    while i < len(edge_cut):
@@ -112,7 +111,7 @@ def create_G_file(filepath1, filepath2, filepath3):
    offset_y = np.argmin(np.hsplit(edge_cut,2)[1])
    offset = np.array([edge_cut[offset_x][0],edge_cut[offset_y][1]])/1000000
    offset = np.array([130,-135])
-   
+
 
    #Converting Free drawing data and storing it for later use
    i = 0
@@ -177,7 +176,7 @@ def create_G_file(filepath1, filepath2, filepath3):
        placement_list[i] = placement_list[i].split('Y')
        placement_list[i] = [np.float32(placement_list[i][0]),np.float32(placement_list[i][1])]
        i += 1
-
+   
    #Compansating for the offset in gerber file
    placement_list = np.array(placement_list)/1000000
    placement_list = placement_list - offset
@@ -189,7 +188,7 @@ def create_G_file(filepath1, filepath2, filepath3):
    apature_x = np.hsplit(apature_list,2)[0]
    apature_y = np.hsplit(apature_list,2)[1]
    apature_area = apature_x * apature_y
-
+   
    #Assigning classes to the components
    i = 0
    for rows in apature:
@@ -234,7 +233,7 @@ def create_G_file(filepath1, filepath2, filepath3):
        longx = np.zeros(shape=(2,1))
        o = 0
        s = 0
-       
+    
    #Big component path
        if component_class[index] == 'big':
            if component_name[index][:4] == 'Free':
@@ -284,7 +283,7 @@ def create_G_file(filepath1, filepath2, filepath3):
                    fp3.write('X{}Y{}'.format(round(x+0.1,4),round(y,4)))
                    s += 0.1 
            N += 1
-        
+           
    #Long component for X-axis        
        if component_class[index] == 'longX':
            if component_name[index][:4] == 'Free':
@@ -320,7 +319,7 @@ def create_G_file(filepath1, filepath2, filepath3):
                fp3.write('X{}Y{}'.format(round(edge_longx[v,0],4),round(edge_longx[v,1],4)))   
                fp3.write('\n')
            N += 1
-   
+
    #Long component for Y-axis    
        if component_class[index] == 'longY':
            if component_name[index][:4] == 'Free':
@@ -359,18 +358,19 @@ def create_G_file(filepath1, filepath2, filepath3):
            N += 1
                
    
-
-
+   
+   
    #Small component     
        if component_class[index] == 'small': 
            fp3.write('N{}'.format(N))                                                                      
            fp3.write('X{}Y{}'.format(round(placement_list[P,0],4),round(placement_list[P,1],4)))
            fp3.write('\n')
            N += 1
-           
+        
    #Deleting past steps
        component_list.pop(P)
        new_place = np.delete(new_place,P,0)
        place = np.delete(place,P,0)
        placement_list = np.delete(placement_list,P,0)
-   fp3.close        
+   fp3.close
+        

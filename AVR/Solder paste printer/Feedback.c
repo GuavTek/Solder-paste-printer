@@ -58,6 +58,10 @@ void ReportEvent(ReturnCodes code, int num){
 				return;
 			}
 			TX_write('B');
+			if (PARSER_LINENUMBER)
+			{
+				SendInt(num);
+			}
 			break;
 		} 
 		case SHORT_WORD: {
